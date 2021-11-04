@@ -5,12 +5,14 @@ import SingleLineWhitespace._
 
 object DSL {
 
-  sealed trait Expr[T]
-  case class Num(value: Int)                                     extends Expr[Int]
-  case class Str(value: String)                                  extends Expr[String]
-  case class Add[T](a: Expr[T], b: Seq[Expr[T]])                 extends Expr[T]
-  case class Eq[T](a: Expr[T], b: Expr[T])                       extends Expr[Boolean]
-  case class IfElse[T](c: Expr[Boolean], a: Expr[T], b: Expr[T]) extends Expr[T]
+  sealed trait Expr
+  case class Num(value: Int)                   extends Expr
+  case class Str(value: String)                extends Expr
+  case class Param(name: String)               extends Expr
+  case object Null                             extends Expr
+  case class Add(a: Expr, b: Seq[Expr])        extends Expr
+  case class Eq(a: Expr, b: Expr)              extends Expr
+  case class IfElse(c: Expr, a: Expr, b: Expr) extends Expr
 
   def plus[_: P]: P[Unit]    = P("+")
   def equals[_: P]: P[Unit]  = P("==")
@@ -18,28 +20,35 @@ object DSL {
   def parensR[_: P]: P[Unit] = P(")")
   def curlyL[_: P]: P[Unit]  = P("{")
   def curlyR[_: P]: P[Unit]  = P("}")
+  def `if`[_: P]: P[Unit]    = P("if")
+  def `else`[_: P]: P[Unit]  = P("else")
 
-  def number[_: P]: P[Expr[Int]]    = P(CharIn("0-9").rep(1).!.map(s => Num(s.toInt)))
-  def string[_: P]: P[Expr[String]] = P(("'" ~ CharIn("a-zA-Z0-9").rep.! ~ "'").map(Str))
+  def reservedWords[_: P]: P[Unit] = P(`if` | `else`)
 
-  def add[_: P, T](p: => P[Expr[T]]): P[Expr[T]] = P(p ~ (plus ~ add(p)).rep)
+  def param[_: P, T]: P[Expr] = P(!reservedWords ~ CharIn("a-zA-Z_").! ~ CharIn("a-zA-Z0-9._").rep.!)
+    .map { case (first, rest) => Param(first + rest) }
+
+  def number[_: P]: P[Expr] = P(CharIn("0-9").rep(1).!).map(s => Num(s.toInt))
+  def string[_: P]: P[Expr] = P("'" ~ CharsWhile(_ != '\'', 1).! ~ "'").map(Str)
+  def `null`[_: P]: P[Expr] = P("null").map(_ => Null)
+
+  def constant[_: P]: P[Expr] = P(number | string | param)
+
+  def add[_: P]: P[Expr] = P(constant ~ (plus ~ constant).rep)
     .map { case (a, b) => Add(a, b) }
 
-  def eq[_: P, T](p: => P[Expr[T]]): P[Expr[Boolean]] = P(add(p) ~ equals ~ add(p))
+  def eq[_: P]: P[Expr] = P(add ~ equals ~ add)
     .map { case (a, b) => Eq(a, b) }
 
-  def ifElse[_: P, T](p: => P[Expr[T]]): P[Expr[T]] =
-    P("if" ~ parensL ~ eq(p) ~ parensR ~ curlyL ~ expr(p) ~ curlyR ~ "else" ~ curlyL ~ expr(p) ~ curlyR)
+  def ifElse[_: P]: P[Expr] =
+    P(`if` ~ parensL ~ eq ~ parensR ~ curlyL ~ expr ~ curlyR ~ `else` ~ curlyL ~ expr ~ curlyR)
       .map { case (cond, whenTrue, whenFalse) =>
         IfElse(cond, whenTrue, whenFalse)
       }
 
-  def expr[_: P, T](p: => P[Expr[T]]): P[Expr[T]] = P(ifElse(p) | add(p))
+  def expr[_: P]: P[Expr] = P(ifElse | add)
 
-  def numExpr[_: P]: P[Expr[Int]]    = expr(number)
-  def strExpr[_: P]: P[Expr[String]] = expr(string)
+  def dsl[_: P]: P[Expr] = P(expr ~ End)
 
-  def dsl[_: P] = P(numExpr | strExpr)
-
-  def parseDsl(s: String) = parse(s.trim, dsl(_))
+  def parseDsl(s: String): Parsed[Expr] = parse(s.trim, expr(_))
 }
