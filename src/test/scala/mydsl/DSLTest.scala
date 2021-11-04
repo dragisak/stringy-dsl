@@ -10,6 +10,7 @@ class DSLTest extends AnyWordSpec {
     List(
       " 3 ",
       " 3 + 4 + 8 + a.b ",
+      "3+4+8+a.b",
       " 'http://foo.bar/baz?v1=xxx' + 'b1' + '3A.4' ",
       " if ( 2 == 3 ) { 5 + 1 + organization.identifier } else { 6 }",
       " if ( 2 == 3 ) { if('a' == null) { null } else { 5 } } else { 6 }"
