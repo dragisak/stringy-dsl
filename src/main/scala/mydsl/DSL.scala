@@ -28,10 +28,12 @@ object DSL {
 
   def ifElse[_: P, T](p: => P[Expr[T]]): P[Expr[T]] =
     P(
-      ("if" ~ parensL ~ eq(p) ~ parensR ~ curlyL ~ add(p) ~ curlyR ~ "else" ~ curlyL ~ add(p) ~ curlyR)
+      ("if" ~ parensL ~ eq(p) ~ parensR ~ curlyL ~ expr(p) ~ curlyR ~ "else" ~ curlyL ~ expr(p) ~ curlyR)
         .map { case (cond, whenTrue, whenFalse) =>
           IfElse(cond, whenTrue, whenFalse)
         }
     )
+
+  def expr[_: P, T](p: => P[Expr[T]]): P[Expr[T]] = P(ifElse(p) | add(p) | p)
 
 }
