@@ -46,7 +46,7 @@ object DSL {
     .map { case (a, b) => Eq(a, b) }
 
   def ne[_: P]: P[Bool] = P(add ~ notEquals ~ add)
-    .map { case (a, b) => Eq(a, b) }
+    .map { case (a, b) => Ne(a, b) }
 
   def conditional[_: P]: P[Bool] = P(eq | ne)
 
