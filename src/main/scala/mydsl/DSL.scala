@@ -60,5 +60,5 @@ object DSL {
 
   def dsl[_: P]: P[Expr] = P(expr ~ End)
 
-  def parseDsl(s: String): Parsed[Expr] = parse(s.trim, expr(_))
+  def parseDsl(s: String): Parsed[Expr] = parse(s.trim, dsl(_))
 }
