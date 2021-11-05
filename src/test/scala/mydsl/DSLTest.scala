@@ -16,7 +16,17 @@ class DSLTest extends AnyWordSpec {
       "3+4+8+a.b",
       " 'http://foo.bar/baz?v1=xxx' + 'b1' + '3A.4' ",
       " if ( 2 == 3 ) { 5 + 1 + organization.identifier } else { 6 }",
-      " if ( 2 != (3 + 1) ) { if('a' == null) { null } else { 5 } } else { 6 }"
+      " if ( 2 != (3 + 1) ) { if('a' == null) { null } else { 5 } } else { 6 }",
+      """ if ( a.b != (3 + 1) ) {
+        |   if(x == null) {
+        |     4
+        |   } else {
+        |     5
+        |   }
+        | } else {
+        |   6 
+        | }
+        |""".stripMargin
     ).foreach { str =>
       s""""$str"""" in {
         parseDsl(str) shouldBe Symbol("success")
@@ -55,7 +65,17 @@ class DSLTest extends AnyWordSpec {
       " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                        -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
       " if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"      -> Result(6),
       " if ( 10 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"     -> Result("6organizationId"),
-      " if ( a.b != (3 + 1) ) { if(x == null) { 4 } else { 5 } } else { 6 }" -> Result(4)
+      " if ( a.b != (3 + 1) ) { if(x == null) { 4 } else { 5 } } else { 6 }" -> Result(4),
+      """ if ( a.b != (3 + 1) ) {
+        |   if(x == null) {
+        |     4
+        |   } else {
+        |     5
+        |   }
+        | } else {
+        |   6 
+        | }
+        |""".stripMargin                                                     -> Result(4)
     ).foreach { case (s, res) =>
       s""" "$s" == ${Result.toString(res)} """ in {
         compute(parseDsl(s).get.value, input) shouldBe res

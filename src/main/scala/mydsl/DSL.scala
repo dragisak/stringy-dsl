@@ -1,7 +1,7 @@
 package mydsl
 
 import fastparse._
-import SingleLineWhitespace._
+import MultiLineWhitespace._
 
 object DSL {
 
