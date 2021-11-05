@@ -11,17 +11,20 @@ object DSL {
   case class Param(name: String)               extends Expr
   case object Null                             extends Expr
   case class Add(a: Expr, b: Seq[Expr])        extends Expr
-  case class Eq(a: Expr, b: Expr)              extends Expr
-  case class IfElse(c: Expr, a: Expr, b: Expr) extends Expr
+  sealed trait Bool                            extends Expr
+  case class Eq(a: Expr, b: Expr)              extends Bool
+  case class Ne(a: Expr, b: Expr)              extends Bool
+  case class IfElse(c: Bool, a: Expr, b: Expr) extends Expr
 
-  def plus[_: P]: P[Unit]    = P("+")
-  def equals[_: P]: P[Unit]  = P("==")
-  def parensL[_: P]: P[Unit] = P("(")
-  def parensR[_: P]: P[Unit] = P(")")
-  def curlyL[_: P]: P[Unit]  = P("{")
-  def curlyR[_: P]: P[Unit]  = P("}")
-  def `if`[_: P]: P[Unit]    = P("if")
-  def `else`[_: P]: P[Unit]  = P("else")
+  def plus[_: P]: P[Unit]      = P("+")
+  def equals[_: P]: P[Unit]    = P("==")
+  def notEquals[_: P]: P[Unit] = P("!=")
+  def parensL[_: P]: P[Unit]   = P("(")
+  def parensR[_: P]: P[Unit]   = P(")")
+  def curlyL[_: P]: P[Unit]    = P("{")
+  def curlyR[_: P]: P[Unit]    = P("}")
+  def `if`[_: P]: P[Unit]      = P("if")
+  def `else`[_: P]: P[Unit]    = P("else")
 
   def reservedWords[_: P]: P[Unit] = P(`if` | `else`)
 
@@ -32,16 +35,23 @@ object DSL {
   def string[_: P]: P[Expr] = P("'" ~ CharsWhile(_ != '\'', 1).! ~ "'").map(Str)
   def `null`[_: P]: P[Expr] = P("null").map(_ => Null)
 
-  def constant[_: P]: P[Expr] = P(number | string | param)
+  def constant[_: P]: P[Expr] = P(number | string | param | parens)
 
-  def add[_: P]: P[Expr] = P(constant ~ (plus ~ constant).rep)
+  def add[_: P]: P[Expr] = P(constant ~ (plus ~/ constant).rep)
     .map { case (a, b) => Add(a, b) }
 
-  def eq[_: P]: P[Expr] = P(add ~ equals ~ add)
+  def parens[_: P]: P[Expr] = P(parensL ~/ add ~ parensR)
+
+  def eq[_: P]: P[Bool] = P(add ~ equals ~ add)
     .map { case (a, b) => Eq(a, b) }
 
+  def ne[_: P]: P[Bool] = P(add ~ notEquals ~ add)
+    .map { case (a, b) => Eq(a, b) }
+
+  def conditional[_: P]: P[Bool] = P(eq | ne)
+
   def ifElse[_: P]: P[Expr] =
-    P(`if` ~ parensL ~ eq ~ parensR ~ curlyL ~ expr ~ curlyR ~ `else` ~ curlyL ~ expr ~ curlyR)
+    P(`if` ~/ parensL ~/ conditional ~ parensR ~/ curlyL ~/ expr ~ curlyR ~/ `else` ~/ curlyL ~/ expr ~ curlyR)
       .map { case (cond, whenTrue, whenFalse) =>
         IfElse(cond, whenTrue, whenFalse)
       }
