@@ -1,4 +1,4 @@
-name := "ParseDSL"
+name := "stringy-dsl"
 
 version := "0.1"
 
