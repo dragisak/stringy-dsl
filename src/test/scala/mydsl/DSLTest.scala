@@ -30,7 +30,7 @@ class DSLTest extends AnyWordSpec {
         |""".stripMargin
     ).foreach { str =>
       s""""$str"""" in {
-        parseDsl(str) shouldBe Symbol("success")
+        parseDsl(str) shouldBe Symbol("right")
       }
 
     }
@@ -44,7 +44,7 @@ class DSLTest extends AnyWordSpec {
       " if ( 2 + 3 ) { 5 + 1 + organization.identifier } else { 6 }"
     ).foreach { str =>
       s""""$str"""" in {
-        parseDsl(str) should not be Symbol("success")
+        parseDsl(str) should not be Symbol("right")
       }
     }
   }
