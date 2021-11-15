@@ -5,6 +5,7 @@ import mydsl.DSL._
 object Eval {
 
   type Result = Either[Either[String, Int], Boolean]
+
   object Result {
     def apply(value: Int): Result     = Left(Right(value))
     def apply(value: String): Result  = Left(Left(value))
@@ -20,10 +21,9 @@ object Eval {
   implicit class ResultOps(val x: Result) extends AnyVal {
     def +(y: Result): Result = (x, y) match {
       case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
-      case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
       case (Left(Right(s)), Left(Right(p))) => Result(s + p)
       case (Left(Right(s)), Left(Left(p)))  => Result(s"$s$p")
-      case _                                => throw new IllegalArgumentException("Supported params: Int, String or Boolean")
+      case _                                => throw new IllegalArgumentException("Supported params: Int or String")
     }
   }
 
