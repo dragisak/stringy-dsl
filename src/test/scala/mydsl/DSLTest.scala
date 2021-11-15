@@ -11,7 +11,7 @@ class DSLTest extends AnyWordSpec {
   "valid strings" should {
     List(
       " 3 ",
-      "organization.v1",
+      "organization.V1",
       " 3 + 4 + 8 + a.b ",
       " (3 + 4) + (8 + a.b) ",
       "3+4+8+a.b",
