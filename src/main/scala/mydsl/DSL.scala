@@ -39,24 +39,21 @@ object DSL {
   }
 
   val number: P[Expr]  = digits.map(s => Num(s.toInt))
-  val string: P0[Expr] = P.anyChar.rep0.string.surroundedBy(P.char('\'')).map(Str)
+  // TODO escape '
+  val string: P0[Expr] = P.charsWhile(_ != '\'').rep0.string.surroundedBy(P.char('\'')).map(Str)
   val `null`: P[Expr]  = P.string("null").as(Null)
 
-  def constant: P0[Expr] = number | string | param | add.between(parensL, parensR)
+  val constant: P0[Expr] = number | string | param | add.between(parensL, parensR)
 
-  def add: P0[Expr] = P
-    .defer0(constant ~ (plus *> constant).rep0)
-    .map { case (a, b) => Add(a, b) }
+  val eq: P0[Bool] = ((add <* equals) ~ add).map(Eq.tupled)
 
-  val eq: P0[Bool] = ((add <* equals) ~ add)
-    .map { case (a, b) => Eq(a, b) }
+  val ne: P0[Bool] = ((add <* notEquals) ~ add).map(Ne.tupled)
 
-  val ne: P0[Bool] = ((add <* notEquals) ~ add)
-    .map { case (a, b) => Ne(a, b) }
+  def add: P0[Expr] = P.defer0(constant ~ (plus *> constant).rep0).map(Add.tupled)
 
   val conditional: P0[Bool] = eq | ne
 
-  def ifElse: P[Expr] =
+  val ifElse: P[Expr] =
     ((`if` *> conditional.between(parensL, parensR) ~
       expr.between(curlyL, curlyR) <* `else`) ~
       expr.between(curlyL, curlyR))
@@ -64,7 +61,7 @@ object DSL {
         IfElse(cond, whenTrue, whenFalse)
       }
 
-  val expr: P0[Expr] = P.defer0(ifElse | add)
+  def expr: P0[Expr] = P.defer0(ifElse | add)
 
   val dsl: P0[Expr] = expr <* P.end
 
