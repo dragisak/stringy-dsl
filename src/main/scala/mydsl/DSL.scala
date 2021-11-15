@@ -1,8 +1,9 @@
 package mydsl
 
-import fastparse._
-import MultiLineWhitespace._
-
+import cats.parse.{Parser => P}
+import cats.parse.{Parser0 => P0}
+import cats.parse.Numbers._
+import cats.parse.Parser._
 object DSL {
 
   sealed trait Expr
@@ -16,49 +17,53 @@ object DSL {
   case class Ne(a: Expr, b: Expr)              extends Bool
   case class IfElse(c: Bool, a: Expr, b: Expr) extends Expr
 
-  def plus[_: P]: P[Unit]      = P("+")
-  def equals[_: P]: P[Unit]    = P("==")
-  def notEquals[_: P]: P[Unit] = P("!=")
-  def parensL[_: P]: P[Unit]   = P("(")
-  def parensR[_: P]: P[Unit]   = P(")")
-  def curlyL[_: P]: P[Unit]    = P("{")
-  def curlyR[_: P]: P[Unit]    = P("}")
-  def `if`[_: P]: P[Unit]      = P("if")
-  def `else`[_: P]: P[Unit]    = P("else")
+  val plus: P[Unit]      = P.char('+')
+  val equals: P[Unit]    = P.string("==")
+  val notEquals: P[Unit] = P.string("!=")
+  val parensL: P[Unit]   = P.char('(')
+  val parensR: P[Unit]   = P.char(')')
+  val curlyL: P[Unit]    = P.char('{')
+  val curlyR: P[Unit]    = P.char('}')
+  val `if`: P[Unit]      = P.string("if")
+  val `else`: P[Unit]    = P.string("else")
 
-  def reservedWords[_: P]: P[Unit] = P(`if` | `else`)
+  val reservedWords: P[Unit] = `if` | `else`
 
-  def param[_: P, T]: P[Expr] = P(!reservedWords ~ CharIn("a-zA-Z_").! ~ CharIn("a-zA-Z0-9._").rep.!)
-    .map { case (first, rest) => Param(first + rest) }
+  val firstParamChar: P[Char] = P.charIn('a' to 'z') | P.charIn('A' to 'Z')
+  val anyParamChar: P[Char]   = digit | firstParamChar
 
-  def number[_: P]: P[Expr] = P(CharIn("0-9").rep(1).!).map(s => Num(s.toInt))
-  def string[_: P]: P[Expr] = P("'" ~ CharsWhile(_ != '\'', 1).! ~ "'").map(Str)
-  def `null`[_: P]: P[Expr] = P("null").map(_ => Null)
+  val param: P0[Expr] = (!reservedWords *> (firstParamChar ~ anyParamChar.rep0.string)).map { case (first, rest) =>
+    Param(first + rest)
+  }
 
-  def constant[_: P]: P[Expr] = P(number | string | param | parens)
+  val number: P[Expr]  = digits.map(s => Num(s.toInt))
+  val string: P0[Expr] = P.anyChar.rep0.string.surroundedBy(P.char('\'')).map(Str)
+  val `null`: P[Expr]  = P.string("null").as(Null)
 
-  def add[_: P]: P[Expr] = P(constant ~ (plus ~/ constant).rep)
+  def constant: P0[Expr] = number | string | param | add.between(parensL, parensR)
+
+  def add: P0[Expr] = (constant ~ (plus *> constant).rep0)
     .map { case (a, b) => Add(a, b) }
 
-  def parens[_: P]: P[Expr] = P(parensL ~/ add ~ parensR)
-
-  def eq[_: P]: P[Bool] = P(add ~ equals ~ add)
+  def eq: P0[Bool] = ((add <* equals) ~ add)
     .map { case (a, b) => Eq(a, b) }
 
-  def ne[_: P]: P[Bool] = P(add ~ notEquals ~ add)
+  def ne: P0[Bool] = ((add <* notEquals) ~ add)
     .map { case (a, b) => Ne(a, b) }
 
-  def conditional[_: P]: P[Bool] = P(eq | ne)
+  def conditional: P0[Bool] = eq | ne
 
-  def ifElse[_: P]: P[Expr] =
-    P(`if` ~/ parensL ~/ conditional ~ parensR ~/ curlyL ~/ expr ~ curlyR ~/ `else` ~/ curlyL ~/ expr ~ curlyR)
-      .map { case (cond, whenTrue, whenFalse) =>
+  def ifElse: P[Expr] =
+    ((`if` *> conditional.between(parensL, parensR) ~
+      expr.between(curlyL, curlyR) <* `else`) ~
+      expr.between(curlyL, curlyR))
+      .map { case ((cond, whenTrue), whenFalse) =>
         IfElse(cond, whenTrue, whenFalse)
       }
 
-  def expr[_: P]: P[Expr] = P(ifElse | add)
+  def expr: P0[Expr] = ifElse | add
 
-  def dsl[_: P]: P[Expr] = P(expr ~ End)
+  val dsl: P0[Expr] = expr <* P.end
 
-  def parseDsl(s: String): Parsed[Expr] = parse(s.trim, dsl(_))
+  def parseDsl(s: String): Either[Error, Expr] = dsl.parseAll(s.trim)
 }

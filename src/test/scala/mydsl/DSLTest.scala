@@ -2,6 +2,7 @@ package mydsl
 
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers._
+import org.scalatest.EitherValues._
 import DSL._
 import Eval._
 
@@ -78,7 +79,7 @@ class DSLTest extends AnyWordSpec {
         |""".stripMargin                                                     -> Result(4)
     ).foreach { case (s, res) =>
       s""" "$s" == ${Result.toString(res)} """ in {
-        compute(parseDsl(s).get.value, input) shouldBe res
+        compute(parseDsl(s).value, input) shouldBe res
       }
     }
   }

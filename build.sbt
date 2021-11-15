@@ -5,7 +5,7 @@ version := "0.1"
 scalaVersion := "2.13.7"
 
 libraryDependencies ++= List(
-  "com.lihaoyi"       %% "fastparse"                % "2.2.2",
+  "org.typelevel"     %% "cats-parse"               % "0.3.5",
   "io.higherkindness" %% "droste-core"              % "0.9.0-M3",
   "org.scalatest"     %% "scalatest-wordspec"       % "3.2.10"   % Test,
   "org.scalatest"     %% "scalatest-shouldmatchers" % "3.2.10"   % Test,
