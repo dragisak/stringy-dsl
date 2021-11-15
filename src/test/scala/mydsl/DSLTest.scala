@@ -12,6 +12,8 @@ class DSLTest extends AnyWordSpec {
     List(
       " 3 ",
       "organization.V1",
+      "_Organization_V1",
+      " 'Organization_V1' ",
       " 3 + 4 + 8 + a.b ",
       " (3 + 4) + (8 + a.b) ",
       "3+4+8+a.b",
@@ -52,6 +54,7 @@ class DSLTest extends AnyWordSpec {
   "eval" should {
     val input: Map[String, Result] = Map(
       "organization.v1"         -> Result("Google"),
+      " 'foo/bar' "             -> Result("foo/bar"),
       "organization.identifier" -> Result("organizationId"),
       "a.b"                     -> Result(10),
       "b1"                      -> Result("bar")

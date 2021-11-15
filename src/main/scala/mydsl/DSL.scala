@@ -19,20 +19,20 @@ object DSL {
 
   val whitespace: P[Unit]    = P.charIn(" \t\r\n").void
   val whitespaces0: P0[Unit] = whitespace.rep0.void
-  val plus: P[Unit]          = (whitespaces0.with1 ~ P.char('+') ~ whitespaces0).void
-  val equals: P[Unit]        = (whitespaces0.with1 ~ P.string("==") ~ whitespaces0).void
-  val notEquals: P[Unit]     = (whitespaces0.with1 ~ P.string("!=") ~ whitespaces0).void
-  val parensL: P[Unit]       = (whitespaces0.with1 ~ P.char('(') ~ whitespaces0).void
-  val parensR: P[Unit]       = (whitespaces0.with1 ~ P.char(')') ~ whitespaces0).void
-  val curlyL: P[Unit]        = (whitespaces0.with1 ~ P.char('{') ~ whitespaces0).void
-  val curlyR: P[Unit]        = (whitespaces0.with1 ~ P.char('}') ~ whitespaces0).void
-  val `if`: P[Unit]          = (whitespaces0.with1 ~ P.string("if") ~ whitespaces0).void
-  val `else`: P[Unit]        = (whitespaces0.with1 ~ P.string("else") ~ whitespaces0).void
+  val plus: P[Unit]          = P.char('+').surroundedBy(whitespaces0)
+  val equals: P[Unit]        = P.string("==").surroundedBy(whitespaces0)
+  val notEquals: P[Unit]     = P.string("!=").surroundedBy(whitespaces0)
+  val parensL: P[Unit]       = P.char('(').surroundedBy(whitespaces0)
+  val parensR: P[Unit]       = P.char(')').surroundedBy(whitespaces0)
+  val curlyL: P[Unit]        = P.char('{').surroundedBy(whitespaces0)
+  val curlyR: P[Unit]        = P.char('}').surroundedBy(whitespaces0)
+  val `if`: P[Unit]          = P.string("if").surroundedBy(whitespaces0)
+  val `else`: P[Unit]        = P.string("else").surroundedBy(whitespaces0)
 
   val reservedWords: P[Unit] = `if` | `else`
 
   val firstParamChar: P[Char] = P.charIn(('a' to 'z') ++ ('A' to 'Z') :+ '_')
-  val anyParamChar: P[Char]   = digit | firstParamChar | P.char('.').as('.')
+  val anyParamChar: P[Char]   = P.charIn(('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z') :+ '_' :+ '.')
 
   val param: P0[Expr] = (!reservedWords *> (firstParamChar ~ anyParamChar.rep0.string)).map { case (first, rest) =>
     Param(first + rest)
@@ -42,7 +42,7 @@ object DSL {
   val string: P0[Expr] = P.anyChar.rep0.string.surroundedBy(P.char('\'')).map(Str)
   val `null`: P[Expr]  = P.string("null").as(Null)
 
-  def constant: P0[Expr] = P.defer0(number | string | param | add.between(parensL, parensR))
+  def constant: P0[Expr] = number | string | param | add.between(parensL, parensR)
 
   def add: P0[Expr] = P
     .defer0(constant ~ (plus *> constant).rep0)
@@ -64,7 +64,7 @@ object DSL {
         IfElse(cond, whenTrue, whenFalse)
       }
 
-  def expr: P0[Expr] = P.defer0(ifElse | add)
+  val expr: P0[Expr] = P.defer0(ifElse | add)
 
   val dsl: P0[Expr] = expr <* P.end
 
