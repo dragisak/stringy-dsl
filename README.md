@@ -1,3 +1,3 @@
-![stringy-dsl](https://github.com/dragishak/stringy-dsl/actions/workflows/ci.yaml/badge.svg)
+![stringy-dsl](https://github.com/dragisak/stringy-dsl/actions/workflows/ci.yaml/badge.svg)
 
 # Parsers
