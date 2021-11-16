@@ -32,8 +32,7 @@ class DSLTest extends AnyWordSpec {
         |""".stripMargin
     ).foreach { str =>
       s""""$str"""" in {
-        val expr = parseDsl(str)
-        expr shouldBe Symbol("right")
+        parseDsl(str) shouldBe Symbol("right")
       }
 
     }
