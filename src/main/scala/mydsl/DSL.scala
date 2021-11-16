@@ -45,18 +45,23 @@ object DSL {
   val string: P0[Expr] = P.charsWhile(_ != '\'').rep0.string.surroundedBy(P.char('\'')).map(Str).withContext("str")
   val `null`: P[Expr]  = P.string("null").as(Null)
 
-  val constant: P0[Expr] = (number | string | param | op.between(parensL, parensR)).withContext("constant")
+  val constant: P0[Expr] =
+    (number | string | param | op.between(parensL, parensR)).surroundedBy(whitespaces0).withContext("constant")
 
-  val eq: P0[Bool] = ((op <* equals) ~ op).map(Eq.tupled).withContext("eq")
+  val booleanOp: P[Either[Unit, Unit]] = equals.eitherOr(notEquals)
 
-  val ne: P0[Bool] = ((op <* notEquals) ~ op).map(Ne.tupled).withContext("ne")
+  val conditional: P0[Bool] = (op ~ booleanOp ~ op)
+    .between(parensL, parensR)
+    .map {
+      case ((e1, Right(_)), e2) => Eq(e1, e2)
+      case ((e1, Left(_)), e2)  => Ne(e1, e2)
+    }
+    .withContext("conditional")
 
-  def op: P0[Expr] = P.defer0(constant ~ (plus *> constant).rep0).map(Add.tupled).withContext("op")
-
-  val conditional: P0[Bool] = (eq | ne).withContext("conditional")
+  def op: P0[Expr] = P.defer0(constant ~ (plus *> constant).backtrack.rep0).map(Add.tupled).withContext("op")
 
   val ifElse: P[Expr] =
-    ((`if` *> conditional.between(parensL, parensR) ~
+    ((`if` *> conditional ~
       expr.between(curlyL, curlyR) <* `else`) ~
       expr.between(curlyL, curlyR))
       .map { case ((cond, whenTrue), whenFalse) =>
