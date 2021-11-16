@@ -1,3 +1,3 @@
-![example workflow](https://github.com/<OWNER>/<REPOSITORY>/actions/workflows/ci.yaml/badge.svg)
+![example workflow](https://github.com/dragishak/stringy-dsl/actions/workflows/ci.yaml/badge.svg)
 
 # Parsers
