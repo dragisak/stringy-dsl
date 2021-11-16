@@ -18,8 +18,9 @@ class DSLTest extends AnyWordSpec {
       " (3 + 4) + (8 + a.b) ",
       "3+4+8+a.b",
       " 'http://foo.bar/baz?v1=xxx' + 'b1' + '3A.4' ",
-      " if ( 2 == 3 ) { 5 + 1 + organization.identifier } else { 6 }",
-      " if ( 2 != (3 + 1) ) { if('a' == null) { null } else { 5 } } else { 6 }",
+      "if ( 2 == 3 ) { 5 + 1 + organization.identifier } else { 6 }",
+      "if ( 2 != 3 ) { 5 + 1 + organization.identifier } else { 6 }",
+      "if ( 2 != (3 + 1) ) { if('a' == null) { null } else { 5 } } else { 6 }",
       """ if ( a.b != (3 + 1) ) {
         |   if(x == null) {
         |     4
@@ -61,16 +62,16 @@ class DSLTest extends AnyWordSpec {
     )
 
     List(
-      " 3 "                                                                  -> Result(3),
-      "organization.v1"                                                      -> Result("Google"),
-      " 3 + 4 + 8 + a.b "                                                    -> Result(25),
-      " (3 + 4) + (8 + a.b) "                                                -> Result(25),
-      "3+4+8+a.b"                                                            -> Result(25),
-      " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                        -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
-      " if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"      -> Result(6),
-      " if ( 10 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"     -> Result("6organizationId"),
-      " if ( a.b != (3 + 1) ) { if(x == null) { 4 } else { 5 } } else { 6 }" -> Result(4),
-      """ if ( a.b != (3 + 1) ) {
+      " 3 "                                                                 -> Result(3),
+      "organization.v1"                                                     -> Result("Google"),
+      " 3 + 4 + 8 + a.b "                                                   -> Result(25),
+      " (3 + 4) + (8 + a.b) "                                               -> Result(25),
+      "3+4+8+a.b"                                                           -> Result(25),
+      " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                       -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
+      "if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"      -> Result(6),
+      "if ( 10 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"     -> Result("6organizationId"),
+      "if ( a.b != (3 + 1) ) { if(x == null) { 4 } else { 5 } } else { 6 }" -> Result(4),
+      """if ( a.b != (3 + 1) ) {
         |   if(x == null) {
         |     4
         |   } else {
@@ -79,7 +80,7 @@ class DSLTest extends AnyWordSpec {
         | } else {
         |   6 
         | }
-        |""".stripMargin                                                     -> Result(4)
+        |""".stripMargin                                                    -> Result(4)
     ).foreach { case (s, res) =>
       s""" "$s" == ${Result.toString(res)} """ in {
         compute(parseDsl(s).value, input) shouldBe res
