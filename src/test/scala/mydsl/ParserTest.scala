@@ -70,6 +70,9 @@ class ParserTest extends AnyWordSpec {
       "if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"      -> Result(6),
       "if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { null }"   -> null,
       "if ( 10 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"     -> Result("6organizationId"),
+      "if ( a.b != null ) { a.b } else { 0 }"                               -> Result(10),
+      "if ( a.b == null ) { 0 } else { a.b }"                               -> Result(10),
+      "if ( a.b.c != null ) { a.b.c } else { 0 }"                           -> Result(0),
       "if ( a.b != (3 + 1) ) { if(x == null) { 4 } else { 5 } } else { 6 }" -> Result(4),
       """if ( a.b != (3 + 1) ) {
         |   if(x == null) {

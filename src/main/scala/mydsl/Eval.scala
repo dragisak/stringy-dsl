@@ -19,7 +19,20 @@ object Eval {
     }
   }
 
-  val coalgebra: Coalgebra[ExprT, Expr] = Coalgebra[ExprT, Expr] {
+  implicit class ResultOps(val x: Result) extends AnyVal {
+    def +(y: Result): Result = (x, y) match {
+      case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
+      case (Left(Right(s)), Left(Right(p))) => Result(s + p)
+      case (Left(Right(s)), Left(Left(p)))  => Result(s"$s$p")
+      case (Right(b), Left(Left(p)))        => Result(s"$b$p")
+      case (Right(b), Left(Right(p)))       => Result(s"$b$p")
+      case (Left(Left(s)), Right(b))        => Result(s"$s$b")
+      case (Left(Right(s)), Right(b))       => Result(s"$s$b")
+      case (Right(a), Right(b))             => Result(a && b)
+    }
+  }
+
+  val coalgebra: Coalgebra[ExprT, Expr] = Coalgebra {
     case Num(value)      => NumT(value)
     case Str(value)      => StrT(value)
     case Param(name)     => ParamT(name)
@@ -28,15 +41,6 @@ object Eval {
     case Eq(a, b)        => EqT(a, b)
     case Ne(a, b)        => NeT(a, b)
     case IfElse(c, a, b) => IfElseT(c, a, b)
-  }
-
-  implicit class ResultOps(val x: Result) extends AnyVal {
-    def +(y: Result): Result = (x, y) match {
-      case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
-      case (Left(Right(s)), Left(Right(p))) => Result(s + p)
-      case (Left(Right(s)), Left(Left(p)))  => Result(s"$s$p")
-      case _                                => throw new IllegalArgumentException("Supported params: Int or String")
-    }
   }
 
   def algebra(input: Map[String, Result] = Map.empty): Algebra[ExprT, Result] = Algebra[ExprT, Result] {
