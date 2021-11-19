@@ -82,7 +82,7 @@ class ParserTest extends AnyWordSpec {
         |""".stripMargin                                                    -> Result(4)
     ).foreach { case (s, res) =>
       s""" "$s" == ${Result.toString(res)} """ in {
-        compute(parseDsl(s).value, input) shouldBe res
+        compute(input)(parseDsl(s).value) shouldBe res
       }
     }
   }

@@ -1,6 +1,5 @@
 package mydsl
 
-import mydsl.Parser._
 import higherkindness.droste._
 import higherkindness.droste.data._
 
@@ -20,6 +19,17 @@ object Eval {
     }
   }
 
+  val coalgebra: Coalgebra[ExprT, Expr] = Coalgebra[ExprT, Expr] {
+    case Num(value)      => NumT(value)
+    case Str(value)      => StrT(value)
+    case Param(name)     => ParamT(name)
+    case Null            => NullT()
+    case Add(a, b)       => AddT(a, b)
+    case Eq(a, b)        => EqT(a, b)
+    case Ne(a, b)        => NeT(a, b)
+    case IfElse(c, a, b) => IfElseT(c, a, b)
+  }
+
   implicit class ResultOps(val x: Result) extends AnyVal {
     def +(y: Result): Result = (x, y) match {
       case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
@@ -29,19 +39,25 @@ object Eval {
     }
   }
 
-  def compute(expr: Expr, input: Map[String, Result] = Map.empty): Result = expr match {
-    case Num(value)      => Result(value)
-    case Str(value)      => Result(value)
-    case Param(name)     => input.getOrElse(name, null)
-    case Null            => null
-    case Add(a, b)       => b.foldLeft(compute(a, input))((acc, x) => acc + compute(x, input))
-    case Eq(a, b)        => Result(compute(a, input) == compute(b, input))
-    case Ne(a, b)        => Result(compute(a, input) != compute(b, input))
-    case IfElse(c, a, b) =>
-      compute(c, input) match {
-        case Right(bool) => if (bool) compute(a, input) else compute(b, input)
+  def algebra(input: Map[String, Result] = Map.empty): Algebra[ExprT, Result] = Algebra[ExprT, Result] {
+    case NumT(value)      => Result(value)
+    case StrT(value)      => Result(value)
+    case ParamT(name)     => input.getOrElse(name, null)
+    case NullT()          => null
+    case AddT(a, b)       => b.foldLeft(a)(_ + _)
+    case EqT(a, b)        => Result(a == b)
+    case NeT(a, b)        => Result(a != b)
+    case IfElseT(c, a, b) =>
+      c match {
+        case Right(bool) => if (bool) a else b
         case _           => throw new IllegalArgumentException("Incorrect if condition")
       }
   }
+
+  def compute(input: Map[String, Result] = Map.empty): Expr => Result =
+    scheme.ghylo(
+      algebra(input).gather(Gather.cata),
+      coalgebra.scatter(Scatter.ana)
+    )
 
 }
