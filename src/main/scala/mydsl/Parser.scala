@@ -26,7 +26,7 @@ object Parser {
 
   val param: P0[Expr] = (!reservedWords *> (firstParamChar ~ anyParamChar.rep0.string))
     .map { case (first, rest) =>
-      Param(first + rest)
+      Param(s"$first$rest")
     }
     .withContext("param")
 
