@@ -6,17 +6,6 @@ import cats.parse.Numbers._
 import cats.parse.Parser._
 object DSL {
 
-  sealed trait Expr
-  case class Num(value: Int)                   extends Expr
-  case class Str(value: String)                extends Expr
-  case class Param(name: String)               extends Expr
-  case object Null                             extends Expr
-  case class Add(a: Expr, b: Seq[Expr])        extends Expr
-  sealed trait Bool                            extends Expr
-  case class Eq(a: Expr, b: Expr)              extends Bool
-  case class Ne(a: Expr, b: Expr)              extends Bool
-  case class IfElse(c: Bool, a: Expr, b: Expr) extends Expr
-
   val whitespace: P[Unit]    = P.charIn(" \t\r\n").void
   val whitespaces0: P0[Unit] = whitespace.rep0.void
   val plus: P[Unit]          = P.char('+').surroundedBy(whitespaces0)

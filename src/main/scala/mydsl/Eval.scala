@@ -1,6 +1,8 @@
 package mydsl
 
 import mydsl.DSL._
+import higherkindness.droste._
+import higherkindness.droste.data._
 
 object Eval {
 
