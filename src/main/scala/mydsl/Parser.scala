@@ -4,7 +4,8 @@ import cats.parse.{Parser => P}
 import cats.parse.{Parser0 => P0}
 import cats.parse.Numbers._
 import cats.parse.Parser._
-object DSL {
+
+object Parser {
 
   val whitespace: P[Unit]    = P.charIn(" \t\r\n").void
   val whitespaces0: P0[Unit] = whitespace.rep0.void
@@ -29,7 +30,8 @@ object DSL {
     }
     .withContext("param")
 
-  val number: P[Expr]  = digits.map(s => Num(s.toInt)).withContext("num")
+  val number: P[Expr] = digits.map(s => Num(s.toInt)).withContext("num")
+
   // TODO escape '
   val string: P0[Expr] = P.charsWhile(_ != '\'').rep0.string.surroundedBy(P.char('\'')).map(Str).withContext("str")
   val `null`: P[Expr]  = P.string("null").as(Null)

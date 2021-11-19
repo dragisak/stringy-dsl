@@ -3,10 +3,10 @@ package mydsl
 import org.scalatest.wordspec.AnyWordSpec
 import org.scalatest.matchers.should.Matchers._
 import org.scalatest.EitherValues._
-import DSL._
+import Parser._
 import Eval._
 
-class DSLTest extends AnyWordSpec {
+class ParserTest extends AnyWordSpec {
 
   "valid strings" should {
     List(

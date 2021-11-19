@@ -1,6 +1,6 @@
 package mydsl
 
-import mydsl.DSL._
+import mydsl.Parser._
 import higherkindness.droste._
 import higherkindness.droste.data._
 
