@@ -12,6 +12,7 @@ object Eval {
     def apply(value: Boolean): Result = Right(value)
 
     def toString(r: Result): String = r match {
+      case null           => "null"
       case Left(Left(s))  => s""""$s""""
       case Left(Right(i)) => i.toString
       case Right(b)       => b.toString

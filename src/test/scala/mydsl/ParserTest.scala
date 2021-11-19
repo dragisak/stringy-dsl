@@ -68,6 +68,7 @@ class ParserTest extends AnyWordSpec {
       "3+4+8+a.b"                                                           -> Result(25),
       " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                       -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
       "if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"      -> Result(6),
+      "if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { null }"   -> null,
       "if ( 10 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"     -> Result("6organizationId"),
       "if ( a.b != (3 + 1) ) { if(x == null) { 4 } else { 5 } } else { 6 }" -> Result(4),
       """if ( a.b != (3 + 1) ) {
