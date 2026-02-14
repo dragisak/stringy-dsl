@@ -7,11 +7,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v6
       - name: Setup JDK
-        uses: actions/setup-java@v2
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
-          java-version: 11
+          java-version: 21
+      - name: Setup sbt launcher
+        uses: sbt/setup-sbt@v1
+        with:
+          sbt-runner-version: 1.12.2
       - name: Build and Test
         run: sbt -v test
