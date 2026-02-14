@@ -7,3 +7,9 @@
 ```
 sbt test
 ```
+
+# Code style
+
+```
+sbt scalafmtAll
+```

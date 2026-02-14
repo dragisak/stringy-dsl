@@ -7,9 +7,35 @@ import cats.parse.Parser._
 
 object Parser {
 
+  private def decodeEscapes(input: String): String = {
+    val out = new StringBuilder(input.length)
+    var i   = 0
+    while (i < input.length) {
+      val c = input.charAt(i)
+      if (c == '\\' && i + 1 < input.length) {
+        input.charAt(i + 1) match {
+          case '\''  => out += '\''
+          case '\\'  => out += '\\'
+          case 'n'   => out += '\n'
+          case 'r'   => out += '\r'
+          case 't'   => out += '\t'
+          case other =>
+            out += '\\'
+            out += other
+        }
+        i += 2
+      } else {
+        out += c
+        i += 1
+      }
+    }
+    out.result()
+  }
+
   private val whitespace: P[Unit]    = P.charIn(" \t\r\n").void
   private val whitespaces0: P0[Unit] = whitespace.rep0.void
   private val plus: P[Unit]          = P.char('+').surroundedBy(whitespaces0)
+  private val minus: P[Unit]         = P.char('-').surroundedBy(whitespaces0)
   private val equals: P[Unit]        = P.string("==").surroundedBy(whitespaces0)
   private val notEquals: P[Unit]     = P.string("!=").surroundedBy(whitespaces0)
   private val parensL: P[Unit]       = P.char('(').surroundedBy(whitespaces0)
@@ -32,25 +58,47 @@ object Parser {
 
   private val number: P[Expr] = digits.map(s => Num(s.toInt)).withContext("num")
 
-  // TODO escape '
-  private val string: P0[Expr] =
-    P.charsWhile(_ != '\'').rep0.string.surroundedBy(P.char('\'')).map(Str).withContext("str")
-  private val `null`: P[Expr]  = P.string("null").as(Null)
+  private val escapedChunk: P[String]   = (P.char('\\') ~ P.anyChar).map { case (_, c) => s"\\$c" }
+  private val unescapedChunk: P[String] = P.charWhere(c => c != '\'' && c != '\\').map(_.toString)
+
+  private val string: P0[Expr] = (escapedChunk | unescapedChunk).rep0
+    .map(_.mkString)
+    .surroundedBy(P.char('\''))
+    .map(s => Str(decodeEscapes(s)))
+    .withContext("str")
+
+  private val `true`: P0[Bool]  = (P.string("true") <* !anyParamChar).as(BoolConst(true))
+  private val `false`: P0[Bool] = (P.string("false") <* !anyParamChar).as(BoolConst(false))
+  private val bool: P0[Bool]    = (`true` | `false`).withContext("bool")
+
+  private val `null`: P0[Expr] = (P.string("null") <* !anyParamChar).as(Null)
 
   private val constant: P0[Expr] =
-    (number | string | `null` | param | op.between(parensL, parensR)).surroundedBy(whitespaces0).withContext("constant")
+    (number | string | bool | `null` | param | op.between(parensL, parensR))
+      .surroundedBy(whitespaces0)
+      .withContext("constant")
 
   private val booleanOp: P[Either[Unit, Unit]] = equals.eitherOr(notEquals)
 
-  private val conditional: P0[Bool] = (op ~ booleanOp ~ op)
-    .between(parensL, parensR)
+  private val comparison: P0[Bool] = (op ~ booleanOp ~ op)
     .map {
       case ((e1, Right(_)), e2) => Eq(e1, e2)
       case ((e1, Left(_)), e2)  => Ne(e1, e2)
     }
+    .withContext("comparison")
+
+  private val conditional: P0[Bool] = (comparison.backtrack | bool)
+    .between(parensL, parensR)
     .withContext("conditional")
 
-  private def op: P0[Expr] = P.defer0(constant ~ (plus *> constant).backtrack.rep0).map(Add.tupled).withContext("op")
+  private val addOrSubtract: P[Boolean] = plus.as(true) | minus.as(false)
+
+  private def op: P0[Expr] = P
+    .defer0(constant ~ (addOrSubtract ~ constant).backtrack.rep0)
+    .map { case (head, tail) =>
+      Add(head, tail.map { case (isAdd, expr) => if (isAdd) expr else Neg(expr) })
+    }
+    .withContext("op")
 
   private val ifElse: P[Expr] =
     ((`if` *> conditional ~
