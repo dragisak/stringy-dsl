@@ -92,7 +92,7 @@ class ParserTest extends AnyWordSpec {
       " 7 / 2 "                                                             -> Result(3.5),
       " 2 + 3 * 4 "                                                         -> Result(14),
       " (2 + 3) * 4 "                                                       -> Result(20),
-      " 10 - 6 / 2 "                                                        -> Result(7),
+      " 10 - 6 / 2 "                                                        -> Result(7.0),
       " 10.5 - 0.5 + 0.25 "                                                 -> Result(10.25),
       " a.c + 1.5 "                                                         -> Result(12.0),
       " 10 - (3 + 1) "                                                      -> Result(6),
@@ -189,25 +189,26 @@ class ParserTest extends AnyWordSpec {
       }
     }
 
-    "return doubles for mixed integer/double arithmetic" in {
-      val numericResults = List(
-        "3 + 2.5"  -> 5.5,
-        "3.5 + 2"  -> 5.5,
-        "10 - 2.5" -> 7.5,
-        "10.5 - 2" -> 8.5,
-        "2 + 3.0"  -> 5.0,
-        "10.0 - 2" -> 8.0
-      ).map { case (expr, expected) =>
-        val result = compute(Map.empty)(parseDsl(expr).value)
-        result match {
-          case Left(Right(n)) =>
-            if (n != expected) fail(s"Unexpected numeric result for '$expr': expected $expected, got $n")
-            n
-          case other          => fail(s"Expected numeric result for '$expr', got: $other")
-        }
+    "keep ints for int+int and promote to double for mixed addition" in {
+      val intPlusInt = compute(Map.empty)(parseDsl("2 + 3").value)
+      intPlusInt match {
+        case Left(Right(IntResult(5))) => ()
+        case other                     => fail(s"Expected IntResult(5), got: $other")
       }
 
-      numericResults.forall(_.isInstanceOf[Double]) shouldBe true
+      List(
+        "3 + 2.5"   -> 5.5,
+        "3.5 + 2"   -> 5.5,
+        "2 + 3.0"   -> 5.0,
+        "2.5 + 3.5" -> 6.0
+      ).foreach { case (expr, expected) =>
+        val result = compute(Map.empty)(parseDsl(expr).value)
+        result match {
+          case Left(Right(DoubleResult(v))) =>
+            if (v != expected) fail(s"Unexpected result for '$expr': expected $expected, got $v")
+          case other                        => fail(s"Expected DoubleResult for '$expr', got: $other")
+        }
+      }
     }
   }
 

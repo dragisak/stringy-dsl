@@ -6,7 +6,8 @@ import higherkindness.droste.util.DefaultTraverse
 
 sealed trait ExprT[A]
 
-final case class NumT[A](value: Double)        extends ExprT[A]
+final case class IntNumT[A](value: Int)        extends ExprT[A]
+final case class DoubleNumT[A](value: Double)  extends ExprT[A]
 final case class StrT[A](value: String)        extends ExprT[A]
 final case class ParamT[A](name: String)       extends ExprT[A]
 final case class NullT[A]()                    extends ExprT[A]
@@ -25,7 +26,8 @@ object ExprT {
   implicit val exprTraverse: Traverse[ExprT] =
     new DefaultTraverse[ExprT] {
       override def traverse[G[_]: Applicative, A, B](fa: ExprT[A])(f: A => G[B]): G[ExprT[B]] = fa match {
-        case v: NumT[B @unchecked]       => (v: ExprT[B]).pure[G]
+        case v: IntNumT[B @unchecked]    => (v: ExprT[B]).pure[G]
+        case v: DoubleNumT[B @unchecked] => (v: ExprT[B]).pure[G]
         case v: StrT[B @unchecked]       => (v: ExprT[B]).pure[G]
         case v: ParamT[B @unchecked]     => (v: ExprT[B]).pure[G]
         case v: NullT[B @unchecked]      => (v: ExprT[B]).pure[G]

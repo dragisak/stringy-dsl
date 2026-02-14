@@ -62,7 +62,10 @@ object Parser {
   private val fractionalPart: P[String] = (P.char('.') *> digits).map("." + _)
   private val number: P[Expr]           = (integerPart ~ fractionalPart.?)
     .map { case (intPart, fractionPart) =>
-      Num((intPart + fractionPart.getOrElse("")).toDouble)
+      fractionPart match {
+        case Some(fraction) => DoubleNum((intPart + fraction).toDouble)
+        case None           => IntNum(intPart.toInt)
+      }
     }
     .withContext("num")
 
