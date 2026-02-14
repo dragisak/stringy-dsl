@@ -4,17 +4,23 @@ import higherkindness.droste._
 
 object Eval {
 
-  type Result = Either[Either[String, Int], Boolean]
+  type Result = Either[Either[String, Double], Boolean]
 
   object Result {
-    def apply(value: Int): Result     = Left(Right(value))
+    def apply(value: Int): Result     = Left(Right(value.toDouble))
+    def apply(value: Double): Result  = Left(Right(value))
     def apply(value: String): Result  = Left(Left(value))
     def apply(value: Boolean): Result = Right(value)
+
+    private def numberToString(n: Double): String = {
+      if (n.isWhole) n.toLong.toString
+      else BigDecimal(n).bigDecimal.stripTrailingZeros.toPlainString
+    }
 
     def toString(r: Result): String = r match {
       case null           => "null"
       case Left(Left(s))  => s""""$s""""
-      case Left(Right(i)) => i.toString
+      case Left(Right(n)) => numberToString(n)
       case Right(b)       => b.toString
     }
   }
@@ -22,13 +28,13 @@ object Eval {
   implicit class ResultOps(val x: Result) extends AnyVal {
     def +(y: Result): Result = (x, y) match {
       case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
-      case (Left(Left(s)), Left(Right(p)))  => Result(s"$s$p")
+      case (Left(Left(s)), Left(Right(p)))  => Result(s"${s}${Result.toString(Result(p))}")
       case (Left(Right(s)), Left(Right(p))) => Result(s + p)
-      case (Left(Right(s)), Left(Left(p)))  => Result(s"$s$p")
+      case (Left(Right(s)), Left(Left(p)))  => Result(s"${Result.toString(Result(s))}$p")
       case (Right(b), Left(Left(p)))        => Result(s"$b$p")
-      case (Right(b), Left(Right(p)))       => Result(s"$b$p")
+      case (Right(b), Left(Right(p)))       => Result(s"${b}${Result.toString(Result(p))}")
       case (Left(Left(s)), Right(b))        => Result(s"$s$b")
-      case (Left(Right(s)), Right(b))       => Result(s"$s$b")
+      case (Left(Right(s)), Right(b))       => Result(s"${Result.toString(Result(s))}$b")
       case (Right(a), Right(b))             => Result(a && b)
     }
   }
@@ -54,7 +60,7 @@ object Eval {
     case NegT(value)       =>
       value match {
         case Left(Right(i)) => Result(-i)
-        case _              => throw new IllegalArgumentException("Only integers can be negated")
+        case _              => throw new IllegalArgumentException("Only numbers can be negated")
       }
     case AddT(a, b)        => b.foldLeft(a)(_ + _)
     case BoolConstT(value) => Result(value)

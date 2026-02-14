@@ -56,7 +56,13 @@ object Parser {
     }
     .withContext("param")
 
-  private val number: P[Expr] = digits.map(s => Num(s.toInt)).withContext("num")
+  private val integerPart: P[String]    = digits
+  private val fractionalPart: P[String] = (P.char('.') *> digits).map("." + _)
+  private val number: P[Expr]           = (integerPart ~ fractionalPart.?)
+    .map { case (intPart, fractionPart) =>
+      Num((intPart + fractionPart.getOrElse("")).toDouble)
+    }
+    .withContext("num")
 
   private val escapedChunk: P[String]   = (P.char('\\') ~ P.anyChar).map { case (_, c) => s"\\$c" }
   private val unescapedChunk: P[String] = P.charWhere(c => c != '\'' && c != '\\').map(_.toString)

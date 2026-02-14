@@ -2,7 +2,7 @@ package mydsl
 
 sealed trait Expr
 
-final case class Num(value: Int)                   extends Expr
+final case class Num(value: Double)                extends Expr
 final case class Str(value: String)                extends Expr
 final case class Param(name: String)               extends Expr
 case object Null                                   extends Expr

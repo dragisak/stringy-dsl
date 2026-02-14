@@ -6,7 +6,7 @@ import higherkindness.droste.util.DefaultTraverse
 
 sealed trait ExprT[A]
 
-final case class NumT[A](value: Int)           extends ExprT[A]
+final case class NumT[A](value: Double)        extends ExprT[A]
 final case class StrT[A](value: String)        extends ExprT[A]
 final case class ParamT[A](name: String)       extends ExprT[A]
 final case class NullT[A]()                    extends ExprT[A]

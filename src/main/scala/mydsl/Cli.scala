@@ -12,7 +12,7 @@ object Cli {
       |  sbt "run \"organization.v1 + suffix\" organization.v1=hello suffix=world"
       |
       |Binding value rules:
-      |  - Integers: 42
+      |  - Numbers: 42, 3.14
       |  - Booleans: true, false
       |  - Null: null
       |  - Strings: anything else (optionally quoted with ' or ")
@@ -67,12 +67,20 @@ object Cli {
       case _       =>
         parseInt(raw)
           .map(Eval.Result(_))
+          .orElse(parseDouble(raw).map(Eval.Result(_)))
           .getOrElse(Eval.Result(unquote(raw)))
     }
 
   private def parseInt(raw: String): Option[Int] =
     try {
       Some(raw.toInt)
+    } catch {
+      case _: NumberFormatException => None
+    }
+
+  private def parseDouble(raw: String): Option[Double] =
+    try {
+      Some(raw.toDouble)
     } catch {
       case _: NumberFormatException => None
     }

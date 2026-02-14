@@ -15,9 +15,11 @@ class ParserTest extends AnyWordSpec {
       "_Organization_V1",
       "true",
       "false",
+      "3.14",
       " 'Organization_V1' ",
       " 'it\\'s' ",
       " 3 + 4 + 8 + a.b ",
+      " 3.5 + 4.25 ",
       " 3 - 1 + a.b ",
       " (3 + 4) + (8 + a.b) ",
       "3+4+8+a.b",
@@ -48,6 +50,7 @@ class ParserTest extends AnyWordSpec {
       " 3d ",
       " 3 + 4 +/ 8 + a.b ",
       " 3 + 4d + a.b ",
+      " 3. ",
       " 3 - ",
       " if ( trues ) { 1 } else { 0 }",
       " if ( 2 + 3 ) { 5 + 1 + organization.identifier } else { 6 }"
@@ -64,6 +67,7 @@ class ParserTest extends AnyWordSpec {
       " 'foo/bar' "             -> Result("foo/bar"),
       "organization.identifier" -> Result("organizationId"),
       "a.b"                     -> Result(10),
+      "a.c"                     -> Result(10.5),
       "b1"                      -> Result("bar"),
       "is_enabled"              -> Result(true)
     )
@@ -72,15 +76,21 @@ class ParserTest extends AnyWordSpec {
       " 3 "                                                                 -> Result(3),
       "true"                                                                -> Result(true),
       "false"                                                               -> Result(false),
+      "3.14"                                                                -> Result(3.14),
       "organization.v1"                                                     -> Result("Google"),
       " 'it\\'s' "                                                          -> Result("it's"),
       " 3 + 4 + 8 + a.b "                                                   -> Result(25),
+      " 3.5 + 4.25 "                                                        -> Result(7.75),
       " 10 - 3 + a.b "                                                      -> Result(17),
+      " 10.5 - 0.5 + 0.25 "                                                 -> Result(10.25),
+      " a.c + 1.5 "                                                         -> Result(12.0),
       " 10 - (3 + 1) "                                                      -> Result(6),
       " (3 + 4) + (8 + a.b) "                                               -> Result(25),
       "3+4+8+a.b"                                                           -> Result(25),
       " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                       -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
+      " 'v=' + 3.5 "                                                        -> Result("v=3.5"),
       "if ( true ) { 1 } else { 0 }"                                        -> Result(1),
+      "if ( 1.5 == 1.5 ) { 1 } else { 0 }"                                  -> Result(1),
       "if ( false ) { 1 } else { 0 }"                                       -> Result(0),
       "if ( is_enabled == true ) { 1 } else { 0 }"                          -> Result(1),
       "if ( 2 == a.b ) { 5 + 1 + organization.identifier } else { 6 }"      -> Result(6),
@@ -143,7 +153,7 @@ class ParserTest extends AnyWordSpec {
       val ex = the[IllegalArgumentException] thrownBy {
         compute(Map.empty)(parseDsl("3 - true").value)
       }
-      ex.getMessage shouldBe "Only integers can be negated"
+      ex.getMessage shouldBe "Only numbers can be negated"
     }
 
     "throw for addition involving null" in {
