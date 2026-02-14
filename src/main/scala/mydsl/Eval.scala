@@ -22,6 +22,7 @@ object Eval {
   implicit class ResultOps(val x: Result) extends AnyVal {
     def +(y: Result): Result = (x, y) match {
       case (Left(Left(s)), Left(Left(p)))   => Result(s"$s$p")
+      case (Left(Left(s)), Left(Right(p)))  => Result(s"$s$p")
       case (Left(Right(s)), Left(Right(p))) => Result(s + p)
       case (Left(Right(s)), Left(Left(p)))  => Result(s"$s$p")
       case (Right(b), Left(Left(p)))        => Result(s"$b$p")

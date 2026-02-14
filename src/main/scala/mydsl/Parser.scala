@@ -38,7 +38,7 @@ object Parser {
   private val `null`: P[Expr]  = P.string("null").as(Null)
 
   private val constant: P0[Expr] =
-    (number | string | param | op.between(parensL, parensR)).surroundedBy(whitespaces0).withContext("constant")
+    (number | string | `null` | param | op.between(parensL, parensR)).surroundedBy(whitespaces0).withContext("constant")
 
   private val booleanOp: P[Either[Unit, Unit]] = equals.eitherOr(notEquals)
 
