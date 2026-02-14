@@ -16,6 +16,5 @@ libraryDependencies ++= List(
 addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.4" cross CrossVersion.full)
 
 scalacOptions ++= List(
-  "-Ymacro-annotations",
-  "-deprecation"
+  "-Ymacro-annotations"
 )
