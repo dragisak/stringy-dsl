@@ -161,6 +161,27 @@ class ParserTest extends AnyWordSpec {
         compute(Map.empty)(parseDsl("null + 1").value)
       }
     }
+
+    "return doubles for mixed integer/double arithmetic" in {
+      val numericResults = List(
+        "3 + 2.5"   -> 5.5,
+        "3.5 + 2"   -> 5.5,
+        "10 - 2.5"  -> 7.5,
+        "10.5 - 2"  -> 8.5,
+        "2 + 3.0"   -> 5.0,
+        "10.0 - 2"  -> 8.0
+      ).map { case (expr, expected) =>
+        val result = compute(Map.empty)(parseDsl(expr).value)
+        result match {
+          case Left(Right(n)) =>
+            if (n != expected) fail(s"Unexpected numeric result for '$expr': expected $expected, got $n")
+            n
+          case other          => fail(s"Expected numeric result for '$expr', got: $other")
+        }
+      }
+
+      numericResults.forall(_.isInstanceOf[Double]) shouldBe true
+    }
   }
 
 }
