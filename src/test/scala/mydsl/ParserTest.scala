@@ -107,4 +107,50 @@ class ParserTest extends AnyWordSpec {
     }
   }
 
+  "parser edge cases" should {
+    "parse keyword-prefixed identifiers as params" in {
+      List("true1", "false_flag", "nullValue", "ifx", "elsey").map(parseDsl(_).value) shouldBe
+        List(
+          Add(Param("true1"), Nil),
+          Add(Param("false_flag"), Nil),
+          Add(Param("nullValue"), Nil),
+          Add(Param("ifx"), Nil),
+          Add(Param("elsey"), Nil)
+        )
+    }
+
+    "reject malformed expressions" in {
+      List(
+        "1 +",
+        "1 - - 2",
+        "if (true) { 1 }",
+        "if ( true ) { 1 } else { 0 } trailing",
+        "'unterminated"
+      ).forall(parseDsl(_).isLeft) shouldBe true
+    }
+  }
+
+  "eval edge cases" should {
+    "decode escaped control characters" in {
+      compute(Map.empty)(parseDsl("'a\\nb\\tend'").value) shouldBe Result("a\nb\tend")
+    }
+
+    "preserve unknown escape sequences as literal backslash + char" in {
+      compute(Map.empty)(parseDsl("'a\\qb'").value) shouldBe Result("a\\qb")
+    }
+
+    "throw for subtraction with non-integers" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("3 - true").value)
+      }
+      ex.getMessage shouldBe "Only integers can be negated"
+    }
+
+    "throw for addition involving null" in {
+      the[MatchError] thrownBy {
+        compute(Map.empty)(parseDsl("null + 1").value)
+      }
+    }
+  }
+
 }

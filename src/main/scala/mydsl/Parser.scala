@@ -32,23 +32,23 @@ object Parser {
     out.result()
   }
 
-  private val whitespace: P[Unit]    = P.charIn(" \t\r\n").void
-  private val whitespaces0: P0[Unit] = whitespace.rep0.void
-  private val plus: P[Unit]          = P.char('+').surroundedBy(whitespaces0)
-  private val minus: P[Unit]         = P.char('-').surroundedBy(whitespaces0)
-  private val equals: P[Unit]        = P.string("==").surroundedBy(whitespaces0)
-  private val notEquals: P[Unit]     = P.string("!=").surroundedBy(whitespaces0)
-  private val parensL: P[Unit]       = P.char('(').surroundedBy(whitespaces0)
-  private val parensR: P[Unit]       = P.char(')').surroundedBy(whitespaces0)
-  private val curlyL: P[Unit]        = P.char('{').surroundedBy(whitespaces0)
-  private val curlyR: P[Unit]        = P.char('}').surroundedBy(whitespaces0)
-  private val `if`: P[Unit]          = P.string("if").surroundedBy(whitespaces0)
-  private val `else`: P[Unit]        = P.string("else").surroundedBy(whitespaces0)
-
-  private val reservedWords: P[Unit] = `if` | `else`
-
+  private val whitespace: P[Unit]     = P.charIn(" \t\r\n").void
+  private val whitespaces0: P0[Unit]  = whitespace.rep0.void
+  private val plus: P[Unit]           = P.char('+').surroundedBy(whitespaces0)
+  private val minus: P[Unit]          = P.char('-').surroundedBy(whitespaces0)
+  private val equals: P[Unit]         = P.string("==").surroundedBy(whitespaces0)
+  private val notEquals: P[Unit]      = P.string("!=").surroundedBy(whitespaces0)
+  private val parensL: P[Unit]        = P.char('(').surroundedBy(whitespaces0)
+  private val parensR: P[Unit]        = P.char(')').surroundedBy(whitespaces0)
+  private val curlyL: P[Unit]         = P.char('{').surroundedBy(whitespaces0)
+  private val curlyR: P[Unit]         = P.char('}').surroundedBy(whitespaces0)
   private val firstParamChar: P[Char] = P.charIn(('a' to 'z') ++ ('A' to 'Z') :+ '_')
   private val anyParamChar: P[Char]   = P.charIn(('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z') :+ '_' :+ '.')
+
+  private val `if`: P[Unit]   = (P.string("if") <* !anyParamChar).surroundedBy(whitespaces0)
+  private val `else`: P[Unit] = (P.string("else") <* !anyParamChar).surroundedBy(whitespaces0)
+
+  private val reservedWords: P[Unit] = `if` | `else`
 
   private val param: P0[Expr] = (!reservedWords *> (firstParamChar ~ anyParamChar.rep0.string))
     .map { case (first, rest) =>
@@ -74,7 +74,7 @@ object Parser {
   private val `null`: P0[Expr] = (P.string("null") <* !anyParamChar).as(Null)
 
   private val constant: P0[Expr] =
-    (number | string | bool | `null` | param | op.between(parensL, parensR))
+    (number | string | bool.backtrack | `null`.backtrack | param | op.between(parensL, parensR))
       .surroundedBy(whitespaces0)
       .withContext("constant")
 
@@ -109,7 +109,7 @@ object Parser {
       }
       .withContext("if-else")
 
-  private def expr: P0[Expr] = P.defer0(ifElse | op).withContext("expr")
+  private def expr: P0[Expr] = P.defer0(ifElse.backtrack | op).withContext("expr")
 
   private val dsl: P0[Expr] = expr <* P.end
 
