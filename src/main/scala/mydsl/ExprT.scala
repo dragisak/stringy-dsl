@@ -11,6 +11,8 @@ final case class StrT[A](value: String)        extends ExprT[A]
 final case class ParamT[A](name: String)       extends ExprT[A]
 final case class NullT[A]()                    extends ExprT[A]
 final case class NegT[A](value: A)             extends ExprT[A]
+final case class MulT[A](a: A, b: A)           extends ExprT[A]
+final case class DivT[A](a: A, b: A)           extends ExprT[A]
 final case class AddT[A](a: A, b: List[A])     extends ExprT[A]
 sealed trait BoolT[A]                          extends ExprT[A]
 final case class BoolConstT[A](value: Boolean) extends BoolT[A]
@@ -29,6 +31,8 @@ object ExprT {
         case v: NullT[B @unchecked]      => (v: ExprT[B]).pure[G]
         case v: BoolConstT[B @unchecked] => (v: ExprT[B]).pure[G]
         case NegT(x)                     => f(x).map(NegT(_))
+        case MulT(x, y)                  => (f(x), f(y)).mapN(MulT(_, _))
+        case DivT(x, y)                  => (f(x), f(y)).mapN(DivT(_, _))
         case AddT(x, y)                  => (f(x), y.traverse(f)).mapN(AddT(_, _))
         case EqT(x, y)                   => (f(x), f(y)).mapN(EqT(_, _))
         case NeT(x, y)                   => (f(x), f(y)).mapN(NeT(_, _))

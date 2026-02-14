@@ -21,6 +21,10 @@ class ParserTest extends AnyWordSpec {
       " 3 + 4 + 8 + a.b ",
       " 3.5 + 4.25 ",
       " 3 - 1 + a.b ",
+      " 2 * 3 ",
+      " 8 / 2 ",
+      " 2 + 3 * 4 ",
+      " (2 + 3) * 4 ",
       " (3 + 4) + (8 + a.b) ",
       "3+4+8+a.b",
       " 'http://foo.bar/baz?v1=xxx' + 'b1' + '3A.4' ",
@@ -50,6 +54,8 @@ class ParserTest extends AnyWordSpec {
       " 3d ",
       " 3 + 4 +/ 8 + a.b ",
       " 3 + 4d + a.b ",
+      " 3 */ 2 ",
+      " 3 // 2 ",
       " 3. ",
       " 3 - ",
       " if ( trues ) { 1 } else { 0 }",
@@ -82,6 +88,11 @@ class ParserTest extends AnyWordSpec {
       " 3 + 4 + 8 + a.b "                                                   -> Result(25),
       " 3.5 + 4.25 "                                                        -> Result(7.75),
       " 10 - 3 + a.b "                                                      -> Result(17),
+      " 2 * 3 "                                                             -> Result(6),
+      " 7 / 2 "                                                             -> Result(3.5),
+      " 2 + 3 * 4 "                                                         -> Result(14),
+      " (2 + 3) * 4 "                                                       -> Result(20),
+      " 10 - 6 / 2 "                                                        -> Result(7),
       " 10.5 - 0.5 + 0.25 "                                                 -> Result(10.25),
       " a.c + 1.5 "                                                         -> Result(12.0),
       " 10 - (3 + 1) "                                                      -> Result(6),
@@ -153,7 +164,7 @@ class ParserTest extends AnyWordSpec {
       val ex = the[IllegalArgumentException] thrownBy {
         compute(Map.empty)(parseDsl("3 - true").value)
       }
-      ex.getMessage shouldBe "Only numbers can be negated"
+      ex.getMessage shouldBe "Only numbers are allowed in arithmetic operations"
     }
 
     "throw for addition involving null" in {
@@ -162,14 +173,30 @@ class ParserTest extends AnyWordSpec {
       }
     }
 
+    "throw for multiplication/division with non-numeric operands" in {
+      val multiplyEx = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("2 * true").value)
+      }
+      if (multiplyEx.getMessage != "Only numbers are allowed in arithmetic operations") {
+        fail(s"Unexpected message: ${multiplyEx.getMessage}")
+      }
+
+      val divideEx = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("'x' / 2").value)
+      }
+      if (divideEx.getMessage != "Only numbers are allowed in arithmetic operations") {
+        fail(s"Unexpected message: ${divideEx.getMessage}")
+      }
+    }
+
     "return doubles for mixed integer/double arithmetic" in {
       val numericResults = List(
-        "3 + 2.5"   -> 5.5,
-        "3.5 + 2"   -> 5.5,
-        "10 - 2.5"  -> 7.5,
-        "10.5 - 2"  -> 8.5,
-        "2 + 3.0"   -> 5.0,
-        "10.0 - 2"  -> 8.0
+        "3 + 2.5"  -> 5.5,
+        "3.5 + 2"  -> 5.5,
+        "10 - 2.5" -> 7.5,
+        "10.5 - 2" -> 8.5,
+        "2 + 3.0"  -> 5.0,
+        "10.0 - 2" -> 8.0
       ).map { case (expr, expected) =>
         val result = compute(Map.empty)(parseDsl(expr).value)
         result match {

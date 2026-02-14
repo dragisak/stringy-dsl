@@ -39,12 +39,20 @@ object Eval {
     }
   }
 
+  private def asNumber(value: Result): Double =
+    value match {
+      case Left(Right(n)) => n
+      case _              => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
+    }
+
   val coalgebra: Coalgebra[ExprT, Expr] = Coalgebra {
     case Num(value)       => NumT(value)
     case Str(value)       => StrT(value)
     case Param(name)      => ParamT(name)
     case Null             => NullT()
     case Neg(value)       => NegT(value)
+    case Mul(a, b)        => MulT(a, b)
+    case Div(a, b)        => DivT(a, b)
     case Add(a, b)        => AddT(a, b)
     case BoolConst(value) => BoolConstT(value)
     case Eq(a, b)         => EqT(a, b)
@@ -57,11 +65,9 @@ object Eval {
     case StrT(value)       => Result(value)
     case ParamT(name)      => input.getOrElse(name, null)
     case NullT()           => null
-    case NegT(value)       =>
-      value match {
-        case Left(Right(i)) => Result(-i)
-        case _              => throw new IllegalArgumentException("Only numbers can be negated")
-      }
+    case NegT(value)       => Result(-asNumber(value))
+    case MulT(a, b)        => Result(asNumber(a) * asNumber(b))
+    case DivT(a, b)        => Result(asNumber(a) / asNumber(b))
     case AddT(a, b)        => b.foldLeft(a)(_ + _)
     case BoolConstT(value) => Result(value)
     case EqT(a, b)         => Result(a == b)

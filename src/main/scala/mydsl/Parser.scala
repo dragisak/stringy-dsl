@@ -36,6 +36,8 @@ object Parser {
   private val whitespaces0: P0[Unit]  = whitespace.rep0.void
   private val plus: P[Unit]           = P.char('+').surroundedBy(whitespaces0)
   private val minus: P[Unit]          = P.char('-').surroundedBy(whitespaces0)
+  private val multiply: P[Unit]       = P.char('*').surroundedBy(whitespaces0)
+  private val divide: P[Unit]         = P.char('/').surroundedBy(whitespaces0)
   private val equals: P[Unit]         = P.string("==").surroundedBy(whitespaces0)
   private val notEquals: P[Unit]      = P.string("!=").surroundedBy(whitespaces0)
   private val parensL: P[Unit]        = P.char('(').surroundedBy(whitespaces0)
@@ -79,10 +81,10 @@ object Parser {
 
   private val `null`: P0[Expr] = (P.string("null") <* !anyParamChar).as(Null)
 
-  private val constant: P0[Expr] =
+  private val atom: P0[Expr] =
     (number | string | bool.backtrack | `null`.backtrack | param | op.between(parensL, parensR))
       .surroundedBy(whitespaces0)
-      .withContext("constant")
+      .withContext("atom")
 
   private val booleanOp: P[Either[Unit, Unit]] = equals.eitherOr(notEquals)
 
@@ -97,10 +99,20 @@ object Parser {
     .between(parensL, parensR)
     .withContext("conditional")
 
-  private val addOrSubtract: P[Boolean] = plus.as(true) | minus.as(false)
+  private val multiplyOrDivide: P[Boolean] = multiply.as(true) | divide.as(false)
+  private val addOrSubtract: P[Boolean]    = plus.as(true) | minus.as(false)
+
+  private def term: P0[Expr] = P
+    .defer0(atom ~ (multiplyOrDivide ~ atom).backtrack.rep0)
+    .map { case (head, tail) =>
+      tail.foldLeft(head) { case (acc, (isMultiply, expr)) =>
+        if (isMultiply) Mul(acc, expr) else Div(acc, expr)
+      }
+    }
+    .withContext("term")
 
   private def op: P0[Expr] = P
-    .defer0(constant ~ (addOrSubtract ~ constant).backtrack.rep0)
+    .defer0(term ~ (addOrSubtract ~ term).backtrack.rep0)
     .map { case (head, tail) =>
       Add(head, tail.map { case (isAdd, expr) => if (isAdd) expr else Neg(expr) })
     }

@@ -7,6 +7,8 @@ final case class Str(value: String)                extends Expr
 final case class Param(name: String)               extends Expr
 case object Null                                   extends Expr
 final case class Neg(value: Expr)                  extends Expr
+final case class Mul(a: Expr, b: Expr)             extends Expr
+final case class Div(a: Expr, b: Expr)             extends Expr
 final case class Add(a: Expr, b: List[Expr])       extends Expr
 sealed trait Bool                                  extends Expr
 final case class BoolConst(value: Boolean)         extends Bool
