@@ -168,25 +168,23 @@ class ParserTest extends AnyWordSpec {
     }
 
     "throw for addition involving null" in {
-      the[MatchError] thrownBy {
+      an[MatchError] should be thrownBy {
         compute(Map.empty)(parseDsl("null + 1").value)
       }
     }
 
-    "throw for multiplication/division with non-numeric operands" in {
+    "throw for multiplication with non-numeric operands" in {
       val multiplyEx = the[IllegalArgumentException] thrownBy {
         compute(Map.empty)(parseDsl("2 * true").value)
       }
-      if (multiplyEx.getMessage != "Only numbers are allowed in arithmetic operations") {
-        fail(s"Unexpected message: ${multiplyEx.getMessage}")
-      }
+      multiplyEx.getMessage shouldBe "Only numbers are allowed in arithmetic operations"
+    }
 
+    "throw for division with non-numeric operands" in {
       val divideEx = the[IllegalArgumentException] thrownBy {
         compute(Map.empty)(parseDsl("'x' / 2").value)
       }
-      if (divideEx.getMessage != "Only numbers are allowed in arithmetic operations") {
-        fail(s"Unexpected message: ${divideEx.getMessage}")
-      }
+      divideEx.getMessage shouldBe "Only numbers are allowed in arithmetic operations"
     }
 
     "keep ints for int+int and promote to double for mixed addition" in {
