@@ -1,5 +1,7 @@
 package mydsl
 
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
 import higherkindness.droste._
 
 object Eval {
@@ -50,6 +52,31 @@ object Eval {
       case _              => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
     }
 
+  private def asString(value: Result, functionName: String): String =
+    value match {
+      case Left(Left(s)) => s
+      case _             => throw new IllegalArgumentException(s"$functionName expects string argument")
+    }
+
+  private def asInt(value: Result, functionName: String): Int =
+    value match {
+      case Left(Right(IntResult(i))) => i
+      case _                         => throw new IllegalArgumentException(s"$functionName expects integer arguments")
+    }
+
+  private def substring(value: String, start: Int, length: Int): String = {
+    if (start < 0 || length < 0)
+      throw new IllegalArgumentException("substr expects non-negative start and length")
+    else if (length == 0 || start >= value.length) ""
+    else value.substring(start, math.min(value.length, start + length))
+  }
+
+  private def md5Hex(value: String): String = {
+    val messageDigest = MessageDigest.getInstance("MD5")
+    val bytes         = messageDigest.digest(value.getBytes(StandardCharsets.UTF_8))
+    bytes.map(byte => f"${byte & 0xff}%02x").mkString
+  }
+
   private def negateNumber(n: NumberResult): NumberResult = n match {
     case IntResult(i)    => IntResult(-i)
     case DoubleResult(d) => DoubleResult(-d)
@@ -95,6 +122,8 @@ object Eval {
     case Mul(a, b)        => MulT(a, b)
     case Div(a, b)        => DivT(a, b)
     case Add(a, b)        => AddT(a, b)
+    case Substr(v, s, l)  => SubstrT(v, s, l)
+    case Md5(v)           => Md5T(v)
     case BoolConst(value) => BoolConstT(value)
     case Eq(a, b)         => EqT(a, b)
     case Ne(a, b)         => NeT(a, b)
@@ -111,6 +140,9 @@ object Eval {
     case MulT(a, b)        => Result(multiplyNumbers(asNumber(a), asNumber(b)))
     case DivT(a, b)        => Result(divideNumbers(asNumber(a), asNumber(b)))
     case AddT(a, b)        => b.foldLeft(a)(_ + _)
+    case SubstrT(v, s, l)  =>
+      Result(substring(asString(v, "substr"), asInt(s, "substr"), asInt(l, "substr")))
+    case Md5T(v)           => Result(md5Hex(Result.plainToString(v)))
     case BoolConstT(value) => Result(value)
     case EqT(a, b)         =>
       (a, b) match {

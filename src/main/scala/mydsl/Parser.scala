@@ -38,6 +38,7 @@ object Parser {
   private val minus: P[Unit]          = P.char('-').surroundedBy(whitespaces0)
   private val multiply: P[Unit]       = P.char('*').surroundedBy(whitespaces0)
   private val divide: P[Unit]         = P.char('/').surroundedBy(whitespaces0)
+  private val comma: P[Unit]          = P.char(',').surroundedBy(whitespaces0)
   private val equals: P[Unit]         = P.string("==").surroundedBy(whitespaces0)
   private val notEquals: P[Unit]      = P.string("!=").surroundedBy(whitespaces0)
   private val parensL: P[Unit]        = P.char('(').surroundedBy(whitespaces0)
@@ -84,8 +85,26 @@ object Parser {
 
   private val `null`: P0[Expr] = (P.string("null") <* !anyParamChar).as(Null)
 
+  private def functionName(name: String): P[Unit] =
+    (P.string(name) <* !anyParamChar).void
+
+  private def substrCall: P0[Expr] =
+    (functionName("substr") *> (((op <* comma) ~ (op <* comma)) ~ op).between(parensL, parensR))
+      .map { case ((value, start), length) =>
+        Substr(value, start, length)
+      }
+      .withContext("substr")
+
+  private def md5Call: P0[Expr] =
+    (functionName("md5") *> op.between(parensL, parensR))
+      .map(Md5)
+      .withContext("md5")
+
+  private def functionCall: P0[Expr] = P.defer0(substrCall.backtrack | md5Call.backtrack)
+
   private val atom: P0[Expr] =
-    (number | string | bool.backtrack | `null`.backtrack | param | op.between(parensL, parensR))
+    (number | string | bool.backtrack | `null`.backtrack | functionCall.backtrack | param | op
+      .between(parensL, parensR))
       .surroundedBy(whitespaces0)
       .withContext("atom")
 

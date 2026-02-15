@@ -28,6 +28,8 @@ class ParserTest extends AnyWordSpec {
       " (3 + 4) + (8 + a.b) ",
       "3+4+8+a.b",
       " 'http://foo.bar/baz?v1=xxx' + 'b1' + '3A.4' ",
+      " substr('abcdef', 1, 3) ",
+      " md5('abc') ",
       "if ( true ) { 1 } else { 0 }",
       "if ( 2 == 3 ) { 5 + 1 + organization.identifier } else { 6 }",
       "if ( 2 != (3 + 1) ) { if('a' == null) { null } else { 5 } } else { 6 }",
@@ -58,6 +60,8 @@ class ParserTest extends AnyWordSpec {
       " 3 // 2 ",
       " 3. ",
       " 3 - ",
+      " substr('abc', 1) ",
+      " md5() ",
       " if ( trues ) { 1 } else { 0 }",
       " if ( 2 + 3 ) { 5 + 1 + organization.identifier } else { 6 }"
     ).foreach { str =>
@@ -99,6 +103,11 @@ class ParserTest extends AnyWordSpec {
       " (3 + 4) + (8 + a.b) "                                               -> Result(25),
       "3+4+8+a.b"                                                           -> Result(25),
       " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                       -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
+      " substr('abcdef', 1, 3) "                                             -> Result("bcd"),
+      " substr(organization.v1, 0, 3) "                                       -> Result("Goo"),
+      " substr('abcdef', 10, 3) "                                             -> Result(""),
+      " md5('abc') "                                                          -> Result("900150983cd24fb0d6963f7d28e17f72"),
+      " md5(10) "                                                             -> Result("d3d9446802a44259755d38e6d163e820"),
       " 'v=' + 3.5 "                                                        -> Result("v=3.5"),
       "if ( true ) { 1 } else { 0 }"                                        -> Result(1),
       "if ( 1.5 == 1.5 ) { 1 } else { 0 }"                                  -> Result(1),
@@ -130,13 +139,15 @@ class ParserTest extends AnyWordSpec {
 
   "parser edge cases" should {
     "parse keyword-prefixed identifiers as params" in {
-      List("true1", "false_flag", "nullValue", "ifx", "elsey").map(parseDsl(_).value) shouldBe
+      List("true1", "false_flag", "nullValue", "ifx", "elsey", "md5", "substr").map(parseDsl(_).value) shouldBe
         List(
           Add(Param("true1"), Nil),
           Add(Param("false_flag"), Nil),
           Add(Param("nullValue"), Nil),
           Add(Param("ifx"), Nil),
-          Add(Param("elsey"), Nil)
+          Add(Param("elsey"), Nil),
+          Add(Param("md5"), Nil),
+          Add(Param("substr"), Nil)
         )
     }
 
@@ -185,6 +196,27 @@ class ParserTest extends AnyWordSpec {
         compute(Map.empty)(parseDsl("'x' / 2").value)
       }
       divideEx.getMessage shouldBe "Only numbers are allowed in arithmetic operations"
+    }
+
+    "throw for substr with non-string first argument" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("substr(1, 0, 1)").value)
+      }
+      ex.getMessage shouldBe "substr expects string argument"
+    }
+
+    "throw for substr with non-integer start/length arguments" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("substr('abc', 1.5, 1)").value)
+      }
+      ex.getMessage shouldBe "substr expects integer arguments"
+    }
+
+    "throw for substr with negative start or length" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("substr('abc', 0 - 1, 1)").value)
+      }
+      ex.getMessage shouldBe "substr expects non-negative start and length"
     }
 
     "keep ints for int+int and promote to double for mixed addition" in {
