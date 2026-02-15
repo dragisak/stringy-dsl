@@ -32,6 +32,9 @@ class ParserTest extends AnyWordSpec {
       " substr('abcdef', 2) ",
       " md5('abc') ",
       " length('abc') ",
+      "var arr = array[]",
+      "var arr = array[]\narr.remove(0)",
+      "for (var a in arr) { a }",
       "if ( 1 < 2 ) { 1 } else { 0 }",
       "for( var i = 0; i < 3, i++) { i }",
       "if ( true ) { 1 } else { 0 }",
@@ -257,7 +260,7 @@ class ParserTest extends AnyWordSpec {
       val ex = the[IllegalArgumentException] thrownBy {
         compute(Map.empty)(parseDsl("length(1)").value)
       }
-      ex.getMessage shouldBe "length expects string argument"
+      ex.getMessage shouldBe "length expects string or array argument"
     }
 
     "keep ints for int+int and promote to double for mixed addition" in {
@@ -372,6 +375,74 @@ class ParserTest extends AnyWordSpec {
           |""".stripMargin
 
       compute(Map.empty)(parseDsl(program).value) shouldBe Result(45)
+    }
+
+    "support array append and length" in {
+      val program =
+        """var arr = array[]
+          |arr.append(1)
+          |arr.append(2)
+          |length(arr)
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result(2)
+    }
+
+    "support array indexing in variable assignment" in {
+      val program =
+        """var arr = array[]
+          |arr.append('x')
+          |arr.append('y')
+          |var x = arr[1]
+          |x
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result("y")
+    }
+
+    "support array remove by index" in {
+      val program =
+        """var arr = array[]
+          |arr.append('a')
+          |arr.append('b')
+          |arr.append('c')
+          |arr.remove(1)
+          |var x = arr[1]
+          |x
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result("c")
+    }
+
+    "return array literal as expression value" in {
+      compute(Map.empty)(parseDsl("array[]").value) shouldBe Result(Seq.empty)
+    }
+
+    "return populated array variable as expression value" in {
+      val program =
+        """var arr = array[]
+          |arr.append(1)
+          |arr.append(2)
+          |arr
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result(Seq(Result(1), Result(2)))
+    }
+
+    "iterate arrays with for-in loop" in {
+      val program =
+        """var arr = array[]
+          |arr.append(1)
+          |arr.append(2)
+          |arr.append(3)
+          |var sum = 0
+          |for (var a in arr) {
+          |  sum = sum + a
+          |}
+          |sum
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result(6)
     }
 
     "keep loop variable scoped to the for loop" in {

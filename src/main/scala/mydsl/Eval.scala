@@ -10,6 +10,7 @@ object Eval {
   sealed trait NumberResult
   final case class IntResult(value: Int)       extends NumberResult
   final case class DoubleResult(value: Double) extends NumberResult
+  final case class ArrayResult(value: Seq[Result]) extends NumberResult
 
   type Result = Either[Either[String, NumberResult], Boolean]
 
@@ -19,12 +20,15 @@ object Eval {
     def apply(value: String): Result       = Left(Left(value))
     def apply(value: Boolean): Result      = Right(value)
     def apply(value: NumberResult): Result = Left(Right(value))
+    def apply(value: Seq[Result]): Result = Left(Right(ArrayResult(value)))
 
     def numberToString(n: NumberResult): String = n match {
       case IntResult(i)    => i.toString
       case DoubleResult(d) =>
         if (d.isWhole) d.toLong.toString
         else BigDecimal(d).bigDecimal.stripTrailingZeros.toPlainString
+      case ArrayResult(values) =>
+        values.map(plainToString).mkString("[", ", ", "]")
     }
 
     def plainToString(r: Result): String = r match {
@@ -45,12 +49,20 @@ object Eval {
   private def toDouble(n: NumberResult): Double = n match {
     case IntResult(i)    => i.toDouble
     case DoubleResult(d) => d
+    case _               => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
   }
 
   private def asNumber(value: Result): NumberResult =
     value match {
-      case Left(Right(n)) => n
+      case Left(Right(n @ IntResult(_)))    => n
+      case Left(Right(n @ DoubleResult(_))) => n
       case _              => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
+    }
+
+  private def asArray(value: Result, functionName: String): Seq[Result] =
+    value match {
+      case Left(Right(ArrayResult(values))) => values
+      case _                                => throw new IllegalArgumentException(s"$functionName expects array argument")
     }
 
   private def asString(value: Result, functionName: String): String =
@@ -86,6 +98,7 @@ object Eval {
   private def negateNumber(n: NumberResult): NumberResult = n match {
     case IntResult(i)    => IntResult(-i)
     case DoubleResult(d) => DoubleResult(-d)
+    case _               => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
   }
 
   private def addNumbers(a: NumberResult, b: NumberResult): NumberResult = (a, b) match {
@@ -139,8 +152,13 @@ object Eval {
     case VarDecl(_, _)    => throw new IllegalArgumentException("Var declarations can only appear in top-level scripts")
     case Assign(_, _)     => throw new IllegalArgumentException("Assignments can only appear in top-level scripts")
     case Inc(_)           => throw new IllegalArgumentException("Increments can only appear in top-level scripts")
+    case Append(_, _)     => throw new IllegalArgumentException("Append operations can only appear in top-level scripts")
+    case Remove(_, _)     => throw new IllegalArgumentException("Remove operations can only appear in top-level scripts")
+    case ArrayIndex(_, _) => throw new IllegalArgumentException("Array indexing can only appear in top-level scripts")
+    case ArrayEmpty       => throw new IllegalArgumentException("Array literals can only appear in top-level scripts")
     case Block(_)         => throw new IllegalArgumentException("Blocks can only be evaluated at top level")
     case ForLoop(_, _, _, _) => throw new IllegalArgumentException("For loops can only be evaluated at top level")
+    case ForEachLoop(_, _, _) => throw new IllegalArgumentException("For-each loops can only be evaluated at top level")
   }
 
   def algebra(input: Map[String, Result] = Map.empty): Algebra[ExprT, Result] = Algebra[ExprT, Result] {
@@ -156,17 +174,28 @@ object Eval {
     case SubstrT(v, s, l)  =>
       Result(substring(asString(v, "substr"), asInt(s, "substr"), l.map(asInt(_, "substr"))))
     case Md5T(v)           => Result(md5Hex(Result.plainToString(v)))
-    case LengthT(v)        => Result(asString(v, "length").length)
+    case LengthT(v)        =>
+      v match {
+        case Left(Left(s))                 => Result(s.length)
+        case Left(Right(ArrayResult(arr))) => Result(arr.length)
+        case _                             => throw new IllegalArgumentException("length expects string or array argument")
+      }
     case BoolConstT(value) => Result(value)
     case EqT(a, b)         =>
       (a, b) match {
-        case (Left(Right(x)), Left(Right(y))) => Result(sameNumberValue(x, y))
-        case _                                => Result(a == b)
+        case (Left(Right(x @ IntResult(_))), Left(Right(y @ IntResult(_))))       => Result(sameNumberValue(x, y))
+        case (Left(Right(x @ IntResult(_))), Left(Right(y @ DoubleResult(_))))    => Result(sameNumberValue(x, y))
+        case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ IntResult(_))))    => Result(sameNumberValue(x, y))
+        case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ DoubleResult(_)))) => Result(sameNumberValue(x, y))
+        case _                                                                      => Result(a == b)
       }
     case NeT(a, b)         =>
       (a, b) match {
-        case (Left(Right(x)), Left(Right(y))) => Result(!sameNumberValue(x, y))
-        case _                                => Result(a != b)
+        case (Left(Right(x @ IntResult(_))), Left(Right(y @ IntResult(_))))       => Result(!sameNumberValue(x, y))
+        case (Left(Right(x @ IntResult(_))), Left(Right(y @ DoubleResult(_))))    => Result(!sameNumberValue(x, y))
+        case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ IntResult(_))))    => Result(!sameNumberValue(x, y))
+        case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ DoubleResult(_)))) => Result(!sameNumberValue(x, y))
+        case _                                                                      => Result(a != b)
       }
     case LtT(a, b)         =>
       Result(toDouble(asNumber(a)) < toDouble(asNumber(b)))
@@ -201,6 +230,41 @@ object Eval {
         val value = evalExpr(valueExpr, env)
         frame.update(name, value)
         value
+
+      case Append(name, valueExpr) =>
+        val frame =
+          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot append to undefined variable '$name'"))
+        val current = frame(name)
+        val arr = asArray(current, "append")
+        val value = evalExpr(valueExpr, env)
+        val updated = Result(arr :+ value)
+        frame.update(name, updated)
+        updated
+
+      case Remove(name, indexExpr) =>
+        val frame =
+          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot remove from undefined variable '$name'"))
+        val current = frame(name)
+        val arr = asArray(current, "remove")
+        val index = asInt(evalExpr(indexExpr, env), "remove")
+        if (index < 0 || index >= arr.length)
+          throw new IllegalArgumentException(s"Array index out of bounds: $index")
+        val updated = Result(arr.patch(index, Nil, 1))
+        frame.update(name, updated)
+        updated
+
+      case ArrayIndex(name, indexExpr) =>
+        val frame =
+          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot index undefined variable '$name'"))
+        val current = frame(name)
+        val arr = asArray(current, "index")
+        val index = asInt(evalExpr(indexExpr, env), "index")
+        if (index < 0 || index >= arr.length)
+          throw new IllegalArgumentException(s"Array index out of bounds: $index")
+        arr(index)
+
+      case ArrayEmpty =>
+        Result(Seq.empty)
 
       case Inc(name) =>
         val frame =
@@ -254,6 +318,20 @@ object Eval {
           }
         }
 
+        last
+
+      case ForEachLoop(itemName, arrayName, body) =>
+        val arrayFrame = env.find(_.contains(arrayName)).getOrElse(
+          throw new IllegalArgumentException(s"Cannot iterate undefined variable '$arrayName'")
+        )
+        val values = asArray(arrayFrame(arrayName), "for-in")
+
+        var last: Result = null
+        values.foreach { value =>
+          val iterationEnv = mutable.Map.empty[String, Result] :: env
+          iterationEnv.head.update(itemName, value)
+          last = evalExpr(body, iterationEnv)
+        }
         last
 
       case plainExpr =>

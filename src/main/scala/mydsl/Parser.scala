@@ -10,6 +10,10 @@ object Parser {
   private val identifierRegex = "[A-Za-z_][A-Za-z0-9_\\.]*"
   private val varDeclRegex    = s"""var\\s+($identifierRegex)\\s*=\\s*(.+)""".r
   private val assignRegex     = s"""($identifierRegex)\\s*=\\s*(.+)""".r
+  private val appendRegex     = s"""($identifierRegex)\\s*\\.\\s*append\\s*\\((.+)\\)""".r
+  private val removeRegex     = s"""($identifierRegex)\\s*\\.\\s*remove\\s*\\((.+)\\)""".r
+  private val indexRegex      = s"""($identifierRegex)\\s*\\[(.+)\\]""".r
+  private val arrayEmptyRegex = """array\s*\[\s*\]""".r
   private val incRegex        = s"""($identifierRegex)\\s*\\+\\+""".r
 
   private def decodeEscapes(input: String): String = {
@@ -206,12 +210,21 @@ object Parser {
     line match {
       case varDeclRegex(name, rhs) => parseDsl(rhs).map(expr => VarDecl(name, expr))
       case assignRegex(name, rhs)  => parseDsl(rhs).map(expr => Assign(name, expr))
+      case appendRegex(name, value) =>
+        parseDsl(value).map(v => Append(name, v))
+      case removeRegex(name, index) =>
+        parseDsl(index).map(i => Remove(name, i))
+      case indexRegex(name, index) =>
+        parseDsl(index).map(i => ArrayIndex(name, i))
+      case arrayEmptyRegex()       =>
+        Right(ArrayEmpty)
       case incRegex(name)          => Right(Inc(name))
       case _                       =>
         parseExpression(line) match {
           case right @ Right(_) => right
           case Left(expressionError) =>
             parseIfWithScriptBranches(line)
+              .orElse(parseForEachLoop(line))
               .orElse(parseForLoop(line))
               .toRight(expressionError)
         }
@@ -437,6 +450,76 @@ object Parser {
                 update    <- parseStatement(updateRaw).toOption
                 bodyExpr  <- parseDsl(body.content).toOption
               } yield ForLoop(init, condition, update, bodyExpr)
+            }
+          }
+        }
+      }
+    }
+  }
+
+  private def parseForEachLoop(line: String): Option[Expr] = {
+    val text = line.trim
+
+    def skipWhitespaces(idx: Int): Int = {
+      var i = idx
+      while (i < text.length && text.charAt(i).isWhitespace) i += 1
+      i
+    }
+
+    def startsWithWord(idx: Int, word: String): Boolean = {
+      val end = idx + word.length
+      if (end > text.length || !text.regionMatches(idx, word, 0, word.length)) false
+      else {
+        val hasFollowingIdentifierChar =
+          end < text.length && (text.charAt(end).isLetterOrDigit || text.charAt(end) == '_')
+        !hasFollowingIdentifierChar
+      }
+    }
+
+    def parseDelimited(start: Int, open: Char, close: Char): Option[Delimited] = {
+      if (start >= text.length || text.charAt(start) != open) None
+      else {
+        var i        = start + 1
+        var depth    = 1
+        var inString = false
+        var escaped  = false
+
+        while (i < text.length) {
+          val ch = text.charAt(i)
+          if (inString) {
+            if (escaped) escaped = false
+            else if (ch == '\\') escaped = true
+            else if (ch == '\'') inString = false
+          } else {
+            if (ch == '\'') inString = true
+            else if (ch == open) depth += 1
+            else if (ch == close) {
+              depth -= 1
+              if (depth == 0) return Some(Delimited(text.substring(start + 1, i), i + 1))
+            }
+          }
+          i += 1
+        }
+
+        None
+      }
+    }
+
+    val forEachHeaderRegex = s"""var\\s+($identifierRegex)\\s+in\\s+($identifierRegex)""".r
+
+    val forStart = skipWhitespaces(0)
+    if (!startsWithWord(forStart, "for")) None
+    else {
+      val headerStart = skipWhitespaces(forStart + 3)
+      parseDelimited(headerStart, '(', ')').flatMap { header =>
+        val bodyStart = skipWhitespaces(header.next)
+        parseDelimited(bodyStart, '{', '}').flatMap { body =>
+          if (skipWhitespaces(body.next) != text.length) None
+          else {
+            header.content.trim match {
+              case forEachHeaderRegex(itemName, arrayName) =>
+                parseDsl(body.content).toOption.map(bodyExpr => ForEachLoop(itemName, arrayName, bodyExpr))
+              case _                                => None
             }
           }
         }
