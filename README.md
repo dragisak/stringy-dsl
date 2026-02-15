@@ -5,7 +5,7 @@
 # Compile and test
 
 ```
-sbt test
+sbt scalafmtCheckAll test
 ```
 
 # CLI demo
