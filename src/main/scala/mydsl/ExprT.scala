@@ -22,6 +22,7 @@ sealed trait BoolT[A]                                              extends ExprT
 final case class BoolConstT[A](value: Boolean)                     extends BoolT[A]
 final case class EqT[A](a: A, b: A)                                extends BoolT[A]
 final case class NeT[A](a: A, b: A)                                extends BoolT[A]
+final case class LtT[A](a: A, b: A)                                extends BoolT[A]
 final case class IfElseT[A](c: A, a: A, b: A)                      extends ExprT[A]
 
 object ExprT {
@@ -44,6 +45,7 @@ object ExprT {
         case LengthT(x)                  => f(x).map(LengthT(_))
         case EqT(x, y)                   => (f(x), f(y)).mapN(EqT(_, _))
         case NeT(x, y)                   => (f(x), f(y)).mapN(NeT(_, _))
+        case LtT(x, y)                   => (f(x), f(y)).mapN(LtT(_, _))
         case IfElseT(c, x, y)            => (f(c), f(x), f(y)).mapN(IfElseT(_, _, _))
       }
     }

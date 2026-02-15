@@ -32,6 +32,8 @@ class ParserTest extends AnyWordSpec {
       " substr('abcdef', 2) ",
       " md5('abc') ",
       " length('abc') ",
+      "if ( 1 < 2 ) { 1 } else { 0 }",
+      "for( var i = 0; i < 3, i++) { i }",
       "if ( true ) { 1 } else { 0 }",
       "if ( 2 == 3 ) { 5 + 1 + organization.identifier } else { 6 }",
       "if ( 2 != (3 + 1) ) { if('a' == null) { null } else { 5 } } else { 6 }",
@@ -67,6 +69,7 @@ class ParserTest extends AnyWordSpec {
       " substring('abc', 1) ",
       " md5() ",
       " length() ",
+      " for( var i = 0; i < 10 ) { i } ",
       " if ( trues ) { 1 } else { 0 }",
       " if ( 2 + 3 ) { 5 + 1 + organization.identifier } else { 6 }"
     ).foreach { str =>
@@ -120,6 +123,7 @@ class ParserTest extends AnyWordSpec {
       " length('abc') "                                                     -> Result(3),
       " length(organization.v1) "                                           -> Result(6),
       " 'v=' + 3.5 "                                                        -> Result("v=3.5"),
+      "if ( 1 < 2 ) { 1 } else { 0 }"                                      -> Result(1),
       "if ( true ) { 1 } else { 0 }"                                        -> Result(1),
       "if ( 1.5 == 1.5 ) { 1 } else { 0 }"                                  -> Result(1),
       "if ( false ) { 1 } else { 0 }"                                       -> Result(0),
@@ -341,6 +345,44 @@ class ParserTest extends AnyWordSpec {
           |""".stripMargin
 
       compute(Map.empty)(parseDsl(program).value) shouldBe Result(2)
+    }
+
+    "evaluate for loop happy path" in {
+      compute(Map.empty)(parseDsl("for( var i = 0; i < 10, i++) { i }").value) shouldBe Result(9)
+    }
+
+    "evaluate for loop with multiline body script" in {
+      val program =
+        """for( var i = 0; i < 3, i++) {
+          |  var a = i
+          |  a++
+          |}
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result(3)
+    }
+
+    "sum numbers in a for loop using assignment" in {
+      val program =
+        """var sum = 0
+          |for (var i=0; i < 10; i++) {
+          |   sum = sum + i
+          |}
+          |sum
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result(45)
+    }
+
+    "keep loop variable scoped to the for loop" in {
+      val program =
+        """for( var i = 0; i < 2, i++) { i }
+          |i + 3
+          |""".stripMargin
+
+      an[MatchError] should be thrownBy {
+        compute(Map.empty)(parseDsl(program).value)
+      }
     }
   }
 

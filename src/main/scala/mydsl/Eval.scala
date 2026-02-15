@@ -134,10 +134,13 @@ object Eval {
     case BoolConst(value) => BoolConstT(value)
     case Eq(a, b)         => EqT(a, b)
     case Ne(a, b)         => NeT(a, b)
+    case Lt(a, b)         => LtT(a, b)
     case IfElse(c, a, b)  => IfElseT(c, a, b)
     case VarDecl(_, _)    => throw new IllegalArgumentException("Var declarations can only appear in top-level scripts")
+    case Assign(_, _)     => throw new IllegalArgumentException("Assignments can only appear in top-level scripts")
     case Inc(_)           => throw new IllegalArgumentException("Increments can only appear in top-level scripts")
     case Block(_)         => throw new IllegalArgumentException("Blocks can only be evaluated at top level")
+    case ForLoop(_, _, _, _) => throw new IllegalArgumentException("For loops can only be evaluated at top level")
   }
 
   def algebra(input: Map[String, Result] = Map.empty): Algebra[ExprT, Result] = Algebra[ExprT, Result] {
@@ -165,6 +168,8 @@ object Eval {
         case (Left(Right(x)), Left(Right(y))) => Result(!sameNumberValue(x, y))
         case _                                => Result(a != b)
       }
+    case LtT(a, b)         =>
+      Result(toDouble(asNumber(a)) < toDouble(asNumber(b)))
     case IfElseT(c, a, b)  =>
       c match {
         case Right(bool) => if (bool) a else b
@@ -188,6 +193,13 @@ object Eval {
       case VarDecl(name, valueExpr) =>
         val value = evalExpr(valueExpr, env)
         env.head.update(name, value)
+        value
+
+      case Assign(name, valueExpr) =>
+        val frame =
+          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot assign undefined variable '$name'"))
+        val value = evalExpr(valueExpr, env)
+        frame.update(name, value)
         value
 
       case Inc(name) =>
@@ -219,6 +231,30 @@ object Eval {
             if (bool) evalExpr(a, branchEnv) else evalExpr(b, branchEnv)
           case _           => throw new IllegalArgumentException("Incorrect if condition")
         }
+
+      case ForLoop(init, condition, update, body) =>
+        val loopEnv = mutable.Map.empty[String, Result] :: env
+        val _       = evalExpr(init, loopEnv)
+
+        var last: Result = null
+        var running      = true
+
+        while (running) {
+          val shouldRun = evalExpr(condition, loopEnv) match {
+            case Right(bool) => bool
+            case _           => throw new IllegalArgumentException("Incorrect for condition")
+          }
+
+          if (shouldRun) {
+            val iterationEnv = mutable.Map.empty[String, Result] :: loopEnv
+            last = evalExpr(body, iterationEnv)
+            val _ = evalExpr(update, loopEnv)
+          } else {
+            running = false
+          }
+        }
+
+        last
 
       case plainExpr =>
         computeExpr(view(env))(plainExpr)
