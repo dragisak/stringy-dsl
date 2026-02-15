@@ -108,17 +108,17 @@ class ParserTest extends AnyWordSpec {
       " (3 + 4) + (8 + a.b) "                                               -> Result(25),
       "3+4+8+a.b"                                                           -> Result(25),
       " 'http://foo.bar/baz?v1=xxx/' + b1 + '/3A.4' "                       -> Result("http://foo.bar/baz?v1=xxx/bar/3A.4"),
-      " substr('abcdef', 1, 3) "                                             -> Result("bcd"),
-      " substr('abcdef', 2) "                                                 -> Result("cdef"),
-      " substr('abcdef', length('abcdef') - 3, 3) "                           -> Result("def"),
-      " substr('abcdef', length('abcdef') - 3) "                              -> Result("def"),
-      " substr('abcdef', 4, 999) "                                            -> Result("ef"),
-      " substr(organization.v1, 0, 3) "                                       -> Result("Goo"),
-      " substr('abcdef', 10, 3) "                                             -> Result(""),
-      " md5('abc') "                                                          -> Result("900150983cd24fb0d6963f7d28e17f72"),
-      " md5(10) "                                                             -> Result("d3d9446802a44259755d38e6d163e820"),
-      " length('abc') "                                                       -> Result(3),
-      " length(organization.v1) "                                             -> Result(6),
+      " substr('abcdef', 1, 3) "                                            -> Result("bcd"),
+      " substr('abcdef', 2) "                                               -> Result("cdef"),
+      " substr('abcdef', length('abcdef') - 3, 3) "                         -> Result("def"),
+      " substr('abcdef', length('abcdef') - 3) "                            -> Result("def"),
+      " substr('abcdef', 4, 999) "                                          -> Result("ef"),
+      " substr(organization.v1, 0, 3) "                                     -> Result("Goo"),
+      " substr('abcdef', 10, 3) "                                           -> Result(""),
+      " md5('abc') "                                                        -> Result("900150983cd24fb0d6963f7d28e17f72"),
+      " md5(10) "                                                           -> Result("d3d9446802a44259755d38e6d163e820"),
+      " length('abc') "                                                     -> Result(3),
+      " length(organization.v1) "                                           -> Result(6),
       " 'v=' + 3.5 "                                                        -> Result("v=3.5"),
       "if ( true ) { 1 } else { 0 }"                                        -> Result(1),
       "if ( 1.5 == 1.5 ) { 1 } else { 0 }"                                  -> Result(1),
@@ -150,7 +150,9 @@ class ParserTest extends AnyWordSpec {
 
   "parser edge cases" should {
     "parse keyword-prefixed identifiers as params" in {
-      List("true1", "false_flag", "nullValue", "ifx", "elsey", "md5", "substr", "length").map(parseDsl(_).value) shouldBe
+      List("true1", "false_flag", "nullValue", "ifx", "elsey", "md5", "substr", "length").map(
+        parseDsl(_).value
+      ) shouldBe
         List(
           Add(Param("true1"), Nil),
           Add(Param("false_flag"), Nil),

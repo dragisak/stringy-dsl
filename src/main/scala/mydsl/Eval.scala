@@ -70,9 +70,9 @@ object Eval {
     else if (start >= value.length) ""
     else
       length match {
-        case Some(0)     => ""
-        case Some(l)     => value.substring(start, math.min(value.length, start + l))
-        case None        => value.substring(start)
+        case Some(0) => ""
+        case Some(l) => value.substring(start, math.min(value.length, start + l))
+        case None    => value.substring(start)
       }
   }
 
