@@ -3,6 +3,7 @@ package mydsl
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import higherkindness.droste._
+import scala.collection.mutable
 
 object Eval {
 
@@ -134,6 +135,9 @@ object Eval {
     case Eq(a, b)         => EqT(a, b)
     case Ne(a, b)         => NeT(a, b)
     case IfElse(c, a, b)  => IfElseT(c, a, b)
+    case VarDecl(_, _)    => throw new IllegalArgumentException("Var declarations can only appear in top-level scripts")
+    case Inc(_)           => throw new IllegalArgumentException("Increments can only appear in top-level scripts")
+    case Block(_)         => throw new IllegalArgumentException("Blocks can only be evaluated at top level")
   }
 
   def algebra(input: Map[String, Result] = Map.empty): Algebra[ExprT, Result] = Algebra[ExprT, Result] {
@@ -168,10 +172,61 @@ object Eval {
       }
   }
 
-  def compute(input: Map[String, Result] = Map.empty): Expr => Result =
+  private def computeExpr(input: Map[String, Result]): Expr => Result =
     scheme.ghylo(
       algebra(input).gather(Gather.cata),
       coalgebra.scatter(Scatter.ana)
     )
+
+  def compute(input: Map[String, Result] = Map.empty): Expr => Result = { expr =>
+    val env = List(mutable.Map.from(input))
+    evalExpr(expr, env)
+  }
+
+  private def evalExpr(expr: Expr, env: List[mutable.Map[String, Result]]): Result =
+    expr match {
+      case VarDecl(name, valueExpr) =>
+        val value = evalExpr(valueExpr, env)
+        env.head.update(name, value)
+        value
+
+      case Inc(name) =>
+        val frame =
+          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot increment undefined variable '$name'"))
+        val current = frame(name)
+        val updated = current match {
+          case Left(Right(IntResult(i))) => Result(i + 1)
+          case _                         => throw new IllegalArgumentException(s"Increment expects integer variable '$name'")
+        }
+        frame.update(name, updated)
+        updated
+
+      case Block(statements) =>
+        if (statements.isEmpty)
+          throw new IllegalArgumentException("Program must contain at least one statement")
+
+        val scopedEnv = mutable.Map.empty[String, Result] :: env
+        var last: Result = null
+        statements.foreach { statement =>
+          last = evalExpr(statement, scopedEnv)
+        }
+        last
+
+      case IfElse(c, a, b) =>
+        evalExpr(c, env) match {
+          case Right(bool) =>
+            val branchEnv = mutable.Map.empty[String, Result] :: env
+            if (bool) evalExpr(a, branchEnv) else evalExpr(b, branchEnv)
+          case _           => throw new IllegalArgumentException("Incorrect if condition")
+        }
+
+      case plainExpr =>
+        computeExpr(view(env))(plainExpr)
+    }
+
+  private def view(env: List[mutable.Map[String, Result]]): Map[String, Result] =
+    env.reverse.foldLeft(Map.empty[String, Result]) { (acc, frame) =>
+      acc ++ frame.toMap
+    }
 
 }

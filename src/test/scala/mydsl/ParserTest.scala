@@ -174,6 +174,22 @@ class ParserTest extends AnyWordSpec {
         "'unterminated"
       ).forall(parseDsl(_).isLeft) shouldBe true
     }
+
+    "parse newline-separated var declaration and increment" in {
+      parseDsl(
+        """var i = 0
+          |i++
+          |""".stripMargin
+      ).value shouldBe Block(List(VarDecl("i", Add(IntNum(0), Nil)), Inc("i")))
+    }
+
+    "reject val declaration in program mode" in {
+      parseDsl("val i = 0").isLeft shouldBe true
+    }
+
+    "reject semicolon-separated statements in program mode" in {
+      parseDsl("var i = 0; i++").isLeft shouldBe true
+    }
   }
 
   "eval edge cases" should {
@@ -260,6 +276,71 @@ class ParserTest extends AnyWordSpec {
           case other                        => fail(s"Expected DoubleResult for '$expr', got: $other")
         }
       }
+    }
+
+    "evaluate var declaration followed by increment" in {
+      compute(Map.empty)(parseDsl("var i = 0\ni++").value) shouldBe Result(1)
+    }
+
+    "evaluate incremented value in later expression" in {
+      compute(Map.empty)(parseDsl("var i = 0\ni++\ni").value) shouldBe Result(1)
+    }
+
+    "throw for incrementing undefined variable" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("i++").value)
+      }
+      ex.getMessage shouldBe "Cannot increment undefined variable 'i'"
+    }
+
+    "throw for incrementing non-integer variable" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("var s = 'x'\ns++").value)
+      }
+      ex.getMessage shouldBe "Increment expects integer variable 's'"
+    }
+
+    "use vars in expressions with strings, booleans and doubles" in {
+      val program =
+        """var s = 'hello'
+          |var b = true
+          |var d = 2.5
+          |var i = 2
+          |if ( b == true ) { s + '-' + (d + i) } else { 'nope' }
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result("hello-4.5")
+    }
+
+    "support vars inside if branches and keep them scoped" in {
+      val program =
+        """if ( true ) {
+          |  var a = 1
+          |  a++
+          |} else {
+          |  var a = 2
+          |  a++
+          |}
+          |a + 3
+          |""".stripMargin
+
+      an[MatchError] should be thrownBy {
+        compute(Map.empty)(parseDsl(program).value)
+      }
+    }
+
+    "evaluate scoped vars in if branches on happy path" in {
+      val program =
+        """if ( true ) {
+          |  var a = 1
+          |  a++
+          |} else {
+          |  var a = 2
+          |  a++
+          |}
+          |""".stripMargin
+
+      compute(Map.empty)(parseDsl(program).value) shouldBe Result(2)
     }
   }
 

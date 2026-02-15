@@ -7,6 +7,10 @@ import cats.parse.Parser._
 
 object Parser {
 
+  private val identifierRegex = "[A-Za-z_][A-Za-z0-9_\\.]*"
+  private val varDeclRegex    = s"""var\\s+($identifierRegex)\\s*=\\s*(.+)""".r
+  private val incRegex        = s"""($identifierRegex)\\s*\\+\\+""".r
+
   private def decodeEscapes(input: String): String = {
     val out = new StringBuilder(input.length)
     var i   = 0
@@ -131,6 +135,7 @@ object Parser {
   private val conditional: P0[Bool] = (comparison.backtrack | bool)
     .between(parensL, parensR)
     .withContext("conditional")
+  private val conditionExpr: P0[Bool] = (comparison.backtrack | bool) <* P.end
 
   private val multiplyOrDivide: P[Boolean] = multiply.as(true) | divide.as(false)
   private val addOrSubtract: P[Boolean]    = plus.as(true) | minus.as(false)
@@ -164,5 +169,162 @@ object Parser {
 
   private val dsl: P0[Expr] = expr <* P.end
 
-  def parseDsl(s: String): Either[Error, Expr] = dsl.parseAll(s.trim)
+  def parseDsl(s: String): Either[Error, Expr] =
+    parseExpression(s) match {
+      case right @ Right(_) => right
+      case Left(err)        => parseScript(s).left.map(_ => err)
+    }
+
+  private def parseExpression(s: String): Either[Error, Expr] =
+    dsl.parseAll(s.trim)
+
+  private def parseCondition(s: String): Either[Error, Bool] =
+    conditionExpr.parseAll(s.trim)
+
+  private def parseScript(s: String): Either[Error, Expr] = {
+    val lines = splitTopLevelStatements(s)
+
+    lines match {
+      case Nil         => parseExpression("")
+      case line :: Nil => parseStatement(line)
+      case _           =>
+        lines
+          .foldLeft[Either[Error, List[Expr]]](Right(Nil)) { (acc, line) =>
+            acc.flatMap { statements =>
+              parseStatement(line).map(_ :: statements)
+            }
+          }
+          .map(statements => Block(statements.reverse))
+    }
+  }
+
+  private def parseStatement(line: String): Either[Error, Expr] =
+    line match {
+      case varDeclRegex(name, rhs) => parseDsl(rhs).map(expr => VarDecl(name, expr))
+      case incRegex(name)          => Right(Inc(name))
+      case _                       =>
+        parseExpression(line) match {
+          case right @ Right(_) => right
+          case Left(expressionError) =>
+            parseIfWithScriptBranches(line) match {
+              case Some(parsed) => Right(parsed)
+              case None         => Left(expressionError)
+            }
+        }
+    }
+
+  private final case class Delimited(content: String, next: Int)
+
+  private def splitTopLevelStatements(s: String): List[String] = {
+    val statements = scala.collection.mutable.ListBuffer.empty[String]
+    var start      = 0
+    var i          = 0
+    var parenDepth = 0
+    var braceDepth = 0
+    var inString   = false
+    var escaped    = false
+
+    while (i < s.length) {
+      val ch = s.charAt(i)
+
+      if (inString) {
+        if (escaped) escaped = false
+        else if (ch == '\\') escaped = true
+        else if (ch == '\'') inString = false
+      } else {
+        ch match {
+          case '\'' => inString = true
+          case '('  => parenDepth += 1
+          case ')'  => if (parenDepth > 0) parenDepth -= 1
+          case '{'  => braceDepth += 1
+          case '}'  => if (braceDepth > 0) braceDepth -= 1
+          case '\n' if parenDepth == 0 && braceDepth == 0 =>
+            val chunk = s.substring(start, i).trim
+            if (chunk.nonEmpty) statements += chunk
+            start = i + 1
+          case _    => ()
+        }
+      }
+
+      i += 1
+    }
+
+    val tail = s.substring(start).trim
+    if (tail.nonEmpty) statements += tail
+    statements.toList
+  }
+
+  private def parseIfWithScriptBranches(line: String): Option[Expr] = {
+    val text = line.trim
+
+    def skipWhitespaces(idx: Int): Int = {
+      var i = idx
+      while (i < text.length && text.charAt(i).isWhitespace) i += 1
+      i
+    }
+
+    def startsWithWord(idx: Int, word: String): Boolean = {
+      val end = idx + word.length
+      if (end > text.length || !text.regionMatches(idx, word, 0, word.length)) false
+      else {
+        val hasFollowingIdentifierChar =
+          end < text.length && (text.charAt(end).isLetterOrDigit || text.charAt(end) == '_')
+        !hasFollowingIdentifierChar
+      }
+    }
+
+    def parseDelimited(start: Int, open: Char, close: Char): Option[Delimited] = {
+      if (start >= text.length || text.charAt(start) != open) None
+      else {
+        var i        = start + 1
+        var depth    = 1
+        var inString = false
+        var escaped  = false
+
+        while (i < text.length) {
+          val ch = text.charAt(i)
+          if (inString) {
+            if (escaped) escaped = false
+            else if (ch == '\\') escaped = true
+            else if (ch == '\'') inString = false
+          } else {
+            if (ch == '\'') inString = true
+            else if (ch == open) depth += 1
+            else if (ch == close) {
+              depth -= 1
+              if (depth == 0) return Some(Delimited(text.substring(start + 1, i), i + 1))
+            }
+          }
+          i += 1
+        }
+
+        None
+      }
+    }
+
+    val ifStart = skipWhitespaces(0)
+    if (!startsWithWord(ifStart, "if")) None
+    else {
+      val condStart = skipWhitespaces(ifStart + 2)
+      parseDelimited(condStart, '(', ')').flatMap { cond =>
+        val thenStart = skipWhitespaces(cond.next)
+        parseDelimited(thenStart, '{', '}').flatMap { whenTrue =>
+          val elseStart = skipWhitespaces(whenTrue.next)
+          if (!startsWithWord(elseStart, "else")) None
+          else {
+            val whenFalseStart = skipWhitespaces(elseStart + 4)
+            parseDelimited(whenFalseStart, '{', '}').flatMap { whenFalse =>
+              if (skipWhitespaces(whenFalse.next) != text.length) None
+              else
+                for {
+                  condition <- parseCondition(cond.content).toOption
+                  trueExpr  <- parseDsl(whenTrue.content).toOption
+                  falseExpr <- parseDsl(whenFalse.content).toOption
+                } yield IfElse(condition, trueExpr, falseExpr)
+            }
+          }
+        }
+      }
+    }
+  }
 }

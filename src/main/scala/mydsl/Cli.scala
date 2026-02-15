@@ -4,12 +4,13 @@ object Cli {
 
   private val usage: String =
     """Usage:
-      |  sbt "run \"<expression>\" [key=value ...]"
+      |  sbt "run \"<program>\" [key=value ...]"
       |
       |Examples:
       |  sbt "run \"3 + 4 + a.b\" a.b=10"
       |  sbt "run \"if ( is_enabled == true ) { 1 } else { 0 }\" is_enabled=true"
       |  sbt "run \"organization.v1 + suffix\" organization.v1=hello suffix=world"
+      |  sbt "run $'var i = 0\ni++'"
       |
       |Binding value rules:
       |  - Numbers: 42, 3.14
@@ -25,14 +26,14 @@ object Cli {
       println(usage)
       ()
     } else {
-      val expression = normalizedArgs.head
+      val program = normalizedArgs.head
 
       parseBindings(normalizedArgs.drop(1).toList) match {
         case Left(error)     =>
           Console.err.println(error)
           sys.exit(1)
         case Right(bindings) =>
-          Parser.parseDsl(expression) match {
+          Parser.parseDsl(program) match {
             case Left(error)   =>
               Console.err.println(s"Parse error: $error")
               sys.exit(1)

@@ -10,12 +10,13 @@ sbt scalafmtCheckAll test
 
 # CLI demo
 
-Evaluate one expression with optional `key=value` bindings:
+Evaluate one program (single or multi-line) with optional `key=value` bindings:
 
 ```
 sbt "run \"3 + 4 + a.b\" a.b=10"
 sbt "run \"if ( is_enabled == true ) { 1 } else { 0 }\" is_enabled=true"
 sbt "run \"organization.v1 + suffix\" organization.v1=hello suffix=world"
+sbt "run $'var i = 0\ni++'"
 ```
 
 Show help:
