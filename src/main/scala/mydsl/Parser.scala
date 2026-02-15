@@ -88,9 +88,14 @@ object Parser {
   private def functionName(name: String): P[Unit] =
     (P.string(name) <* !anyParamChar).void
 
+  private def substrArgs: P0[(Expr, Expr, Option[Expr])] =
+    ((op <* comma) ~ op ~ (comma *> op).?).map { case ((value, start), length) =>
+      (value, start, length)
+    }
+
   private def substrCall: P0[Expr] =
-    (functionName("substr") *> (((op <* comma) ~ (op <* comma)) ~ op).between(parensL, parensR))
-      .map { case ((value, start), length) =>
+    (functionName("substr") *> substrArgs.between(parensL, parensR))
+      .map { case (value, start, length) =>
         Substr(value, start, length)
       }
       .withContext("substr")
@@ -100,7 +105,13 @@ object Parser {
       .map(Md5)
       .withContext("md5")
 
-  private def functionCall: P0[Expr] = P.defer0(substrCall.backtrack | md5Call.backtrack)
+  private def lengthCall: P0[Expr] =
+    (functionName("length") *> op.between(parensL, parensR))
+      .map(Length)
+      .withContext("length")
+
+  private def functionCall: P0[Expr] =
+    P.defer0(substrCall.backtrack | md5Call.backtrack | lengthCall.backtrack)
 
   private val atom: P0[Expr] =
     (number | string | bool.backtrack | `null`.backtrack | functionCall.backtrack | param | op

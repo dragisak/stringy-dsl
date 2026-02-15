@@ -64,11 +64,16 @@ object Eval {
       case _                         => throw new IllegalArgumentException(s"$functionName expects integer arguments")
     }
 
-  private def substring(value: String, start: Int, length: Int): String = {
-    if (start < 0 || length < 0)
+  private def substring(value: String, start: Int, length: Option[Int]): String = {
+    if (start < 0 || length.exists(_ < 0))
       throw new IllegalArgumentException("substr expects non-negative start and length")
-    else if (length == 0 || start >= value.length) ""
-    else value.substring(start, math.min(value.length, start + length))
+    else if (start >= value.length) ""
+    else
+      length match {
+        case Some(0)     => ""
+        case Some(l)     => value.substring(start, math.min(value.length, start + l))
+        case None        => value.substring(start)
+      }
   }
 
   private def md5Hex(value: String): String = {
@@ -124,6 +129,7 @@ object Eval {
     case Add(a, b)        => AddT(a, b)
     case Substr(v, s, l)  => SubstrT(v, s, l)
     case Md5(v)           => Md5T(v)
+    case Length(v)        => LengthT(v)
     case BoolConst(value) => BoolConstT(value)
     case Eq(a, b)         => EqT(a, b)
     case Ne(a, b)         => NeT(a, b)
@@ -141,8 +147,9 @@ object Eval {
     case DivT(a, b)        => Result(divideNumbers(asNumber(a), asNumber(b)))
     case AddT(a, b)        => b.foldLeft(a)(_ + _)
     case SubstrT(v, s, l)  =>
-      Result(substring(asString(v, "substr"), asInt(s, "substr"), asInt(l, "substr")))
+      Result(substring(asString(v, "substr"), asInt(s, "substr"), l.map(asInt(_, "substr"))))
     case Md5T(v)           => Result(md5Hex(Result.plainToString(v)))
+    case LengthT(v)        => Result(asString(v, "length").length)
     case BoolConstT(value) => Result(value)
     case EqT(a, b)         =>
       (a, b) match {

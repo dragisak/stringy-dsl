@@ -15,8 +15,9 @@ final case class NegT[A](value: A)             extends ExprT[A]
 final case class MulT[A](a: A, b: A)           extends ExprT[A]
 final case class DivT[A](a: A, b: A)           extends ExprT[A]
 final case class AddT[A](a: A, b: List[A])     extends ExprT[A]
-final case class SubstrT[A](value: A, start: A, length: A) extends ExprT[A]
+final case class SubstrT[A](value: A, start: A, length: Option[A]) extends ExprT[A]
 final case class Md5T[A](value: A)             extends ExprT[A]
+final case class LengthT[A](value: A)          extends ExprT[A]
 sealed trait BoolT[A]                          extends ExprT[A]
 final case class BoolConstT[A](value: Boolean) extends BoolT[A]
 final case class EqT[A](a: A, b: A)            extends BoolT[A]
@@ -38,8 +39,9 @@ object ExprT {
         case MulT(x, y)                  => (f(x), f(y)).mapN(MulT(_, _))
         case DivT(x, y)                  => (f(x), f(y)).mapN(DivT(_, _))
         case AddT(x, y)                  => (f(x), y.traverse(f)).mapN(AddT(_, _))
-        case SubstrT(x, y, z)            => (f(x), f(y), f(z)).mapN(SubstrT(_, _, _))
+        case SubstrT(x, y, z)            => (f(x), f(y), z.traverse(f)).mapN(SubstrT(_, _, _))
         case Md5T(x)                     => f(x).map(Md5T(_))
+        case LengthT(x)                  => f(x).map(LengthT(_))
         case EqT(x, y)                   => (f(x), f(y)).mapN(EqT(_, _))
         case NeT(x, y)                   => (f(x), f(y)).mapN(NeT(_, _))
         case IfElseT(c, x, y)            => (f(c), f(x), f(y)).mapN(IfElseT(_, _, _))
