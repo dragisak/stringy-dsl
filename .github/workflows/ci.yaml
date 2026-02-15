@@ -16,6 +16,6 @@ jobs:
       - name: Setup sbt launcher
         uses: sbt/setup-sbt@v1
         with:
-          sbt-runner-version: 1.12.2
+          sbt-runner-version: 1.12.3
       - name: Build and Test
         run: sbt -v test
