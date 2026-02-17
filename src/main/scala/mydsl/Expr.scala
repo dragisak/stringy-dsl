@@ -16,6 +16,7 @@ sealed trait Function                                                   extends 
 final case class Substr(value: Expr, start: Expr, length: Option[Expr]) extends Function
 final case class Md5(value: Expr)                                       extends Function
 final case class Length(value: Expr)                                    extends Function
+final case class Abs(value: Expr)                                       extends Function
 sealed trait Bool                                                       extends Expr
 final case class BoolConst(value: Boolean)                              extends Bool
 final case class Eq(a: Expr, b: Expr)                                   extends Bool

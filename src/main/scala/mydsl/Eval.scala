@@ -101,6 +101,12 @@ object Eval {
     case _               => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
   }
 
+  private def absoluteNumber(n: NumberResult): NumberResult = n match {
+    case IntResult(i)    => IntResult(math.abs(i))
+    case DoubleResult(d) => DoubleResult(math.abs(d))
+    case _               => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
+  }
+
   private def addNumbers(a: NumberResult, b: NumberResult): NumberResult = (a, b) match {
     case (IntResult(x), IntResult(y)) => IntResult(x + y)
     case _                            => DoubleResult(toDouble(a) + toDouble(b))
@@ -144,6 +150,7 @@ object Eval {
     case Substr(v, s, l)      => SubstrT(v, s, l)
     case Md5(v)               => Md5T(v)
     case Length(v)            => LengthT(v)
+    case Abs(v)               => AbsT(v)
     case BoolConst(value)     => BoolConstT(value)
     case Eq(a, b)             => EqT(a, b)
     case Ne(a, b)             => NeT(a, b)
@@ -180,6 +187,7 @@ object Eval {
         case Left(Right(ArrayResult(arr))) => Result(arr.length)
         case _                             => throw new IllegalArgumentException("length expects string or array argument")
       }
+    case AbsT(v)           => Result(absoluteNumber(asNumber(v)))
     case BoolConstT(value) => Result(value)
     case EqT(a, b)         =>
       (a, b) match {

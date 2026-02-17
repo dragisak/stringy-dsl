@@ -32,6 +32,7 @@ class ParserTest extends AnyWordSpec {
       " substr('abcdef', 2) ",
       " md5('abc') ",
       " length('abc') ",
+      " abs(0 - 3) ",
       "var arr = array[]",
       "var arr = array[]\narr.remove(0)",
       "for (var a in arr) { a }",
@@ -72,6 +73,7 @@ class ParserTest extends AnyWordSpec {
       " substring('abc', 1) ",
       " md5() ",
       " length() ",
+      " abs() ",
       " for( var i = 0; i < 10 ) { i } ",
       " if ( trues ) { 1 } else { 0 }",
       " if ( 2 + 3 ) { 5 + 1 + organization.identifier } else { 6 }"
@@ -125,6 +127,8 @@ class ParserTest extends AnyWordSpec {
       " md5(10) "                                                           -> Result("d3d9446802a44259755d38e6d163e820"),
       " length('abc') "                                                     -> Result(3),
       " length(organization.v1) "                                           -> Result(6),
+      " abs(0 - 3) "                                                        -> Result(3),
+      " abs(3.5 - 10) "                                                     -> Result(6.5),
       " 'v=' + 3.5 "                                                        -> Result("v=3.5"),
       "if ( 1 < 2 ) { 1 } else { 0 }"                                       -> Result(1),
       "if ( true ) { 1 } else { 0 }"                                        -> Result(1),
@@ -157,7 +161,7 @@ class ParserTest extends AnyWordSpec {
 
   "parser edge cases" should {
     "parse keyword-prefixed identifiers as params" in {
-      List("true1", "false_flag", "nullValue", "ifx", "elsey", "md5", "substr", "length").map(
+      List("true1", "false_flag", "nullValue", "ifx", "elsey", "md5", "substr", "length", "abs").map(
         parseDsl(_).value
       ) shouldBe
         List(
@@ -168,7 +172,8 @@ class ParserTest extends AnyWordSpec {
           Add(Param("elsey"), Nil),
           Add(Param("md5"), Nil),
           Add(Param("substr"), Nil),
-          Add(Param("length"), Nil)
+          Add(Param("length"), Nil),
+          Add(Param("abs"), Nil)
         )
     }
 
@@ -261,6 +266,13 @@ class ParserTest extends AnyWordSpec {
         compute(Map.empty)(parseDsl("length(1)").value)
       }
       ex.getMessage shouldBe "length expects string or array argument"
+    }
+
+    "throw for abs with non-numeric argument" in {
+      val ex = the[IllegalArgumentException] thrownBy {
+        compute(Map.empty)(parseDsl("abs('abc')").value)
+      }
+      ex.getMessage shouldBe "Only numbers are allowed in arithmetic operations"
     }
 
     "keep ints for int+int and promote to double for mixed addition" in {

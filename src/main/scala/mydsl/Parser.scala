@@ -120,8 +120,13 @@ object Parser {
       .map(Length)
       .withContext("length")
 
+  private def absCall: P0[Expr] =
+    (functionName("abs") *> op.between(parensL, parensR))
+      .map(Abs)
+      .withContext("abs")
+
   private def functionCall: P0[Expr] =
-    P.defer0(substrCall.backtrack | md5Call.backtrack | lengthCall.backtrack)
+    P.defer0(substrCall.backtrack | md5Call.backtrack | lengthCall.backtrack | absCall.backtrack)
 
   private val atom: P0[Expr] =
     (number | string | bool.backtrack | `null`.backtrack | functionCall.backtrack | param | op
