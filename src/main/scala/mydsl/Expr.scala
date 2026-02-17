@@ -23,13 +23,13 @@ final case class Ne(a: Expr, b: Expr)                                   extends 
 final case class Lt(a: Expr, b: Expr)                                   extends Bool
 final case class IfElse(c: Bool, a: Expr, b: Expr)                      extends Expr
 
-final case class VarDecl(name: String, value: Expr)                     extends Expr
-final case class Assign(name: String, value: Expr)                      extends Expr
-final case class Inc(name: String)                                      extends Expr
-final case class Append(name: String, value: Expr)                      extends Expr
-final case class Remove(name: String, index: Expr)                      extends Expr
-final case class ArrayIndex(name: String, index: Expr)                  extends Expr
-case object ArrayEmpty                                                  extends Expr
-final case class Block(statements: List[Expr])                          extends Expr
+final case class VarDecl(name: String, value: Expr)                             extends Expr
+final case class Assign(name: String, value: Expr)                              extends Expr
+final case class Inc(name: String)                                              extends Expr
+final case class Append(name: String, value: Expr)                              extends Expr
+final case class Remove(name: String, index: Expr)                              extends Expr
+final case class ArrayIndex(name: String, index: Expr)                          extends Expr
+case object ArrayEmpty                                                          extends Expr
+final case class Block(statements: List[Expr])                                  extends Expr
 final case class ForLoop(init: Expr, condition: Bool, update: Expr, body: Expr) extends Expr
-final case class ForEachLoop(itemName: String, arrayName: String, body: Expr) extends Expr
+final case class ForEachLoop(itemName: String, arrayName: String, body: Expr)   extends Expr

@@ -126,7 +126,7 @@ class ParserTest extends AnyWordSpec {
       " length('abc') "                                                     -> Result(3),
       " length(organization.v1) "                                           -> Result(6),
       " 'v=' + 3.5 "                                                        -> Result("v=3.5"),
-      "if ( 1 < 2 ) { 1 } else { 0 }"                                      -> Result(1),
+      "if ( 1 < 2 ) { 1 } else { 0 }"                                       -> Result(1),
       "if ( true ) { 1 } else { 0 }"                                        -> Result(1),
       "if ( 1.5 == 1.5 ) { 1 } else { 0 }"                                  -> Result(1),
       "if ( false ) { 1 } else { 0 }"                                       -> Result(0),

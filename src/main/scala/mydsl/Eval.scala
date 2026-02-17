@@ -8,8 +8,8 @@ import scala.collection.mutable
 object Eval {
 
   sealed trait NumberResult
-  final case class IntResult(value: Int)       extends NumberResult
-  final case class DoubleResult(value: Double) extends NumberResult
+  final case class IntResult(value: Int)           extends NumberResult
+  final case class DoubleResult(value: Double)     extends NumberResult
   final case class ArrayResult(value: Seq[Result]) extends NumberResult
 
   type Result = Either[Either[String, NumberResult], Boolean]
@@ -20,11 +20,11 @@ object Eval {
     def apply(value: String): Result       = Left(Left(value))
     def apply(value: Boolean): Result      = Right(value)
     def apply(value: NumberResult): Result = Left(Right(value))
-    def apply(value: Seq[Result]): Result = Left(Right(ArrayResult(value)))
+    def apply(value: Seq[Result]): Result  = Left(Right(ArrayResult(value)))
 
     def numberToString(n: NumberResult): String = n match {
-      case IntResult(i)    => i.toString
-      case DoubleResult(d) =>
+      case IntResult(i)        => i.toString
+      case DoubleResult(d)     =>
         if (d.isWhole) d.toLong.toString
         else BigDecimal(d).bigDecimal.stripTrailingZeros.toPlainString
       case ArrayResult(values) =>
@@ -56,7 +56,7 @@ object Eval {
     value match {
       case Left(Right(n @ IntResult(_)))    => n
       case Left(Right(n @ DoubleResult(_))) => n
-      case _              => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
+      case _                                => throw new IllegalArgumentException("Only numbers are allowed in arithmetic operations")
     }
 
   private def asArray(value: Result, functionName: String): Seq[Result] =
@@ -132,32 +132,32 @@ object Eval {
   }
 
   val coalgebra: Coalgebra[ExprT, Expr] = Coalgebra {
-    case IntNum(value)    => IntNumT(value)
-    case DoubleNum(value) => DoubleNumT(value)
-    case Str(value)       => StrT(value)
-    case Param(name)      => ParamT(name)
-    case Null             => NullT()
-    case Neg(value)       => NegT(value)
-    case Mul(a, b)        => MulT(a, b)
-    case Div(a, b)        => DivT(a, b)
-    case Add(a, b)        => AddT(a, b)
-    case Substr(v, s, l)  => SubstrT(v, s, l)
-    case Md5(v)           => Md5T(v)
-    case Length(v)        => LengthT(v)
-    case BoolConst(value) => BoolConstT(value)
-    case Eq(a, b)         => EqT(a, b)
-    case Ne(a, b)         => NeT(a, b)
-    case Lt(a, b)         => LtT(a, b)
-    case IfElse(c, a, b)  => IfElseT(c, a, b)
-    case VarDecl(_, _)    => throw new IllegalArgumentException("Var declarations can only appear in top-level scripts")
-    case Assign(_, _)     => throw new IllegalArgumentException("Assignments can only appear in top-level scripts")
-    case Inc(_)           => throw new IllegalArgumentException("Increments can only appear in top-level scripts")
-    case Append(_, _)     => throw new IllegalArgumentException("Append operations can only appear in top-level scripts")
-    case Remove(_, _)     => throw new IllegalArgumentException("Remove operations can only appear in top-level scripts")
-    case ArrayIndex(_, _) => throw new IllegalArgumentException("Array indexing can only appear in top-level scripts")
-    case ArrayEmpty       => throw new IllegalArgumentException("Array literals can only appear in top-level scripts")
-    case Block(_)         => throw new IllegalArgumentException("Blocks can only be evaluated at top level")
-    case ForLoop(_, _, _, _) => throw new IllegalArgumentException("For loops can only be evaluated at top level")
+    case IntNum(value)        => IntNumT(value)
+    case DoubleNum(value)     => DoubleNumT(value)
+    case Str(value)           => StrT(value)
+    case Param(name)          => ParamT(name)
+    case Null                 => NullT()
+    case Neg(value)           => NegT(value)
+    case Mul(a, b)            => MulT(a, b)
+    case Div(a, b)            => DivT(a, b)
+    case Add(a, b)            => AddT(a, b)
+    case Substr(v, s, l)      => SubstrT(v, s, l)
+    case Md5(v)               => Md5T(v)
+    case Length(v)            => LengthT(v)
+    case BoolConst(value)     => BoolConstT(value)
+    case Eq(a, b)             => EqT(a, b)
+    case Ne(a, b)             => NeT(a, b)
+    case Lt(a, b)             => LtT(a, b)
+    case IfElse(c, a, b)      => IfElseT(c, a, b)
+    case VarDecl(_, _)        => throw new IllegalArgumentException("Var declarations can only appear in top-level scripts")
+    case Assign(_, _)         => throw new IllegalArgumentException("Assignments can only appear in top-level scripts")
+    case Inc(_)               => throw new IllegalArgumentException("Increments can only appear in top-level scripts")
+    case Append(_, _)         => throw new IllegalArgumentException("Append operations can only appear in top-level scripts")
+    case Remove(_, _)         => throw new IllegalArgumentException("Remove operations can only appear in top-level scripts")
+    case ArrayIndex(_, _)     => throw new IllegalArgumentException("Array indexing can only appear in top-level scripts")
+    case ArrayEmpty           => throw new IllegalArgumentException("Array literals can only appear in top-level scripts")
+    case Block(_)             => throw new IllegalArgumentException("Blocks can only be evaluated at top level")
+    case ForLoop(_, _, _, _)  => throw new IllegalArgumentException("For loops can only be evaluated at top level")
     case ForEachLoop(_, _, _) => throw new IllegalArgumentException("For-each loops can only be evaluated at top level")
   }
 
@@ -187,7 +187,7 @@ object Eval {
         case (Left(Right(x @ IntResult(_))), Left(Right(y @ DoubleResult(_))))    => Result(sameNumberValue(x, y))
         case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ IntResult(_))))    => Result(sameNumberValue(x, y))
         case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ DoubleResult(_)))) => Result(sameNumberValue(x, y))
-        case _                                                                      => Result(a == b)
+        case _                                                                    => Result(a == b)
       }
     case NeT(a, b)         =>
       (a, b) match {
@@ -195,7 +195,7 @@ object Eval {
         case (Left(Right(x @ IntResult(_))), Left(Right(y @ DoubleResult(_))))    => Result(!sameNumberValue(x, y))
         case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ IntResult(_))))    => Result(!sameNumberValue(x, y))
         case (Left(Right(x @ DoubleResult(_))), Left(Right(y @ DoubleResult(_)))) => Result(!sameNumberValue(x, y))
-        case _                                                                      => Result(a != b)
+        case _                                                                    => Result(a != b)
       }
     case LtT(a, b)         =>
       Result(toDouble(asNumber(a)) < toDouble(asNumber(b)))
@@ -226,27 +226,33 @@ object Eval {
 
       case Assign(name, valueExpr) =>
         val frame =
-          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot assign undefined variable '$name'"))
+          env
+            .find(_.contains(name))
+            .getOrElse(throw new IllegalArgumentException(s"Cannot assign undefined variable '$name'"))
         val value = evalExpr(valueExpr, env)
         frame.update(name, value)
         value
 
       case Append(name, valueExpr) =>
-        val frame =
-          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot append to undefined variable '$name'"))
+        val frame   =
+          env
+            .find(_.contains(name))
+            .getOrElse(throw new IllegalArgumentException(s"Cannot append to undefined variable '$name'"))
         val current = frame(name)
-        val arr = asArray(current, "append")
-        val value = evalExpr(valueExpr, env)
+        val arr     = asArray(current, "append")
+        val value   = evalExpr(valueExpr, env)
         val updated = Result(arr :+ value)
         frame.update(name, updated)
         updated
 
       case Remove(name, indexExpr) =>
-        val frame =
-          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot remove from undefined variable '$name'"))
+        val frame   =
+          env
+            .find(_.contains(name))
+            .getOrElse(throw new IllegalArgumentException(s"Cannot remove from undefined variable '$name'"))
         val current = frame(name)
-        val arr = asArray(current, "remove")
-        val index = asInt(evalExpr(indexExpr, env), "remove")
+        val arr     = asArray(current, "remove")
+        val index   = asInt(evalExpr(indexExpr, env), "remove")
         if (index < 0 || index >= arr.length)
           throw new IllegalArgumentException(s"Array index out of bounds: $index")
         val updated = Result(arr.patch(index, Nil, 1))
@@ -254,11 +260,13 @@ object Eval {
         updated
 
       case ArrayIndex(name, indexExpr) =>
-        val frame =
-          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot index undefined variable '$name'"))
+        val frame   =
+          env
+            .find(_.contains(name))
+            .getOrElse(throw new IllegalArgumentException(s"Cannot index undefined variable '$name'"))
         val current = frame(name)
-        val arr = asArray(current, "index")
-        val index = asInt(evalExpr(indexExpr, env), "index")
+        val arr     = asArray(current, "index")
+        val index   = asInt(evalExpr(indexExpr, env), "index")
         if (index < 0 || index >= arr.length)
           throw new IllegalArgumentException(s"Array index out of bounds: $index")
         arr(index)
@@ -267,8 +275,10 @@ object Eval {
         Result(Seq.empty)
 
       case Inc(name) =>
-        val frame =
-          env.find(_.contains(name)).getOrElse(throw new IllegalArgumentException(s"Cannot increment undefined variable '$name'"))
+        val frame   =
+          env
+            .find(_.contains(name))
+            .getOrElse(throw new IllegalArgumentException(s"Cannot increment undefined variable '$name'"))
         val current = frame(name)
         val updated = current match {
           case Left(Right(IntResult(i))) => Result(i + 1)
@@ -281,7 +291,7 @@ object Eval {
         if (statements.isEmpty)
           throw new IllegalArgumentException("Program must contain at least one statement")
 
-        val scopedEnv = mutable.Map.empty[String, Result] :: env
+        val scopedEnv    = mutable.Map.empty[String, Result] :: env
         var last: Result = null
         statements.foreach { statement =>
           last = evalExpr(statement, scopedEnv)
@@ -312,7 +322,7 @@ object Eval {
           if (shouldRun) {
             val iterationEnv = mutable.Map.empty[String, Result] :: loopEnv
             last = evalExpr(body, iterationEnv)
-            val _ = evalExpr(update, loopEnv)
+            val _            = evalExpr(update, loopEnv)
           } else {
             running = false
           }
@@ -321,10 +331,12 @@ object Eval {
         last
 
       case ForEachLoop(itemName, arrayName, body) =>
-        val arrayFrame = env.find(_.contains(arrayName)).getOrElse(
-          throw new IllegalArgumentException(s"Cannot iterate undefined variable '$arrayName'")
-        )
-        val values = asArray(arrayFrame(arrayName), "for-in")
+        val arrayFrame = env
+          .find(_.contains(arrayName))
+          .getOrElse(
+            throw new IllegalArgumentException(s"Cannot iterate undefined variable '$arrayName'")
+          )
+        val values     = asArray(arrayFrame(arrayName), "for-in")
 
         var last: Result = null
         values.foreach { value =>

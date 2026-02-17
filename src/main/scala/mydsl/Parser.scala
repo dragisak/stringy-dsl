@@ -140,7 +140,7 @@ object Parser {
     }
     .withContext("comparison")
 
-  private val conditional: P0[Bool] = (comparison.backtrack | bool)
+  private val conditional: P0[Bool]   = (comparison.backtrack | bool)
     .between(parensL, parensR)
     .withContext("conditional")
   private val conditionExpr: P0[Bool] = (comparison.backtrack | bool) <* P.end
@@ -208,20 +208,20 @@ object Parser {
 
   private def parseStatement(line: String): Either[Error, Expr] =
     line match {
-      case varDeclRegex(name, rhs) => parseDsl(rhs).map(expr => VarDecl(name, expr))
-      case assignRegex(name, rhs)  => parseDsl(rhs).map(expr => Assign(name, expr))
+      case varDeclRegex(name, rhs)  => parseDsl(rhs).map(expr => VarDecl(name, expr))
+      case assignRegex(name, rhs)   => parseDsl(rhs).map(expr => Assign(name, expr))
       case appendRegex(name, value) =>
         parseDsl(value).map(v => Append(name, v))
       case removeRegex(name, index) =>
         parseDsl(index).map(i => Remove(name, i))
-      case indexRegex(name, index) =>
+      case indexRegex(name, index)  =>
         parseDsl(index).map(i => ArrayIndex(name, i))
-      case arrayEmptyRegex()       =>
+      case arrayEmptyRegex()        =>
         Right(ArrayEmpty)
-      case incRegex(name)          => Right(Inc(name))
-      case _                       =>
+      case incRegex(name)           => Right(Inc(name))
+      case _                        =>
         parseExpression(line) match {
-          case right @ Right(_) => right
+          case right @ Right(_)      => right
           case Left(expressionError) =>
             parseIfWithScriptBranches(line)
               .orElse(parseForEachLoop(line))
@@ -250,16 +250,16 @@ object Parser {
         else if (ch == '\'') inString = false
       } else {
         ch match {
-          case '\'' => inString = true
-          case '('  => parenDepth += 1
-          case ')'  => if (parenDepth > 0) parenDepth -= 1
-          case '{'  => braceDepth += 1
-          case '}'  => if (braceDepth > 0) braceDepth -= 1
+          case '\''                                       => inString = true
+          case '('                                        => parenDepth += 1
+          case ')'                                        => if (parenDepth > 0) parenDepth -= 1
+          case '{'                                        => braceDepth += 1
+          case '}'                                        => if (braceDepth > 0) braceDepth -= 1
           case '\n' if parenDepth == 0 && braceDepth == 0 =>
             val chunk = s.substring(start, i).trim
             if (chunk.nonEmpty) statements += chunk
             start = i + 1
-          case _    => ()
+          case _                                          => ()
         }
       }
 
@@ -410,16 +410,16 @@ object Parser {
           else if (ch == '\'') inString = false
         } else {
           ch match {
-            case '\''                              => inString = true
-            case '('                               => parenDepth += 1
-            case ')' if parenDepth > 0             => parenDepth -= 1
-            case '{'                               => braceDepth += 1
-            case '}' if braceDepth > 0             => braceDepth -= 1
-            case ';' if parenDepth == 0 && braceDepth == 0 && firstSep == -1 =>
+            case '\''                                                                                   => inString = true
+            case '('                                                                                    => parenDepth += 1
+            case ')' if parenDepth > 0                                                                  => parenDepth -= 1
+            case '{'                                                                                    => braceDepth += 1
+            case '}' if braceDepth > 0                                                                  => braceDepth -= 1
+            case ';' if parenDepth == 0 && braceDepth == 0 && firstSep == -1                            =>
               firstSep = i
             case (';' | ',') if parenDepth == 0 && braceDepth == 0 && firstSep != -1 && secondSep == -1 =>
               secondSep = i
-            case _                                 => ()
+            case _                                                                                      => ()
           }
         }
         i += 1
@@ -519,7 +519,7 @@ object Parser {
             header.content.trim match {
               case forEachHeaderRegex(itemName, arrayName) =>
                 parseDsl(body.content).toOption.map(bodyExpr => ForEachLoop(itemName, arrayName, bodyExpr))
-              case _                                => None
+              case _                                       => None
             }
           }
         }
