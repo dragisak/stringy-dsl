@@ -125,8 +125,13 @@ object Parser {
       .map(Abs)
       .withContext("abs")
 
+  private def modCall: P0[Expr] =
+    (functionName("mod") *> ((op <* comma) ~ op).between(parensL, parensR))
+      .map { case (a, b) => Mod(a, b) }
+      .withContext("mod")
+
   private def functionCall: P0[Expr] =
-    P.defer0(substrCall.backtrack | md5Call.backtrack | lengthCall.backtrack | absCall.backtrack)
+    P.defer0(substrCall.backtrack | md5Call.backtrack | lengthCall.backtrack | absCall.backtrack | modCall.backtrack)
 
   private val atom: P0[Expr] =
     (number | string | bool.backtrack | `null`.backtrack | functionCall.backtrack | param | op

@@ -120,6 +120,11 @@ object Eval {
   private def divideNumbers(a: NumberResult, b: NumberResult): NumberResult =
     DoubleResult(toDouble(a) / toDouble(b))
 
+  private def moduloNumbers(a: NumberResult, b: NumberResult): NumberResult = (a, b) match {
+    case (IntResult(x), IntResult(y)) => IntResult(x % y)
+    case _                            => DoubleResult(toDouble(a) % toDouble(b))
+  }
+
   private def sameNumberValue(a: NumberResult, b: NumberResult): Boolean =
     toDouble(a) == toDouble(b)
 
@@ -151,6 +156,7 @@ object Eval {
     case Md5(v)               => Md5T(v)
     case Length(v)            => LengthT(v)
     case Abs(v)               => AbsT(v)
+    case Mod(a, b)            => ModT(a, b)
     case BoolConst(value)     => BoolConstT(value)
     case Eq(a, b)             => EqT(a, b)
     case Ne(a, b)             => NeT(a, b)
@@ -188,6 +194,7 @@ object Eval {
         case _                             => throw new IllegalArgumentException("length expects string or array argument")
       }
     case AbsT(v)           => Result(absoluteNumber(asNumber(v)))
+    case ModT(a, b)        => Result(moduloNumbers(asNumber(a), asNumber(b)))
     case BoolConstT(value) => Result(value)
     case EqT(a, b)         =>
       (a, b) match {
