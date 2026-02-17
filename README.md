@@ -3,9 +3,8 @@
 # Parsers
 
 # Compile and test
-
 ```
-sbt scalafmtCheckAll test
+sbtn test
 ```
 
 # CLI demo
@@ -27,6 +26,12 @@ sbt "run --help"
 
 # Code style
 
+## Check
 ```
-sbt scalafmtAll
+sbtn scalafmtCheckAll
+```
+
+## Reformat
+```
+sbtn scalafmtAll
 ```
