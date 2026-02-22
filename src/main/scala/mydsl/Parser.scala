@@ -7,15 +7,6 @@ import cats.parse.Parser._
 
 object Parser {
 
-  private val identifierRegex = "[A-Za-z_][A-Za-z0-9_\\.]*"
-  private val varDeclRegex    = s"""var\\s+($identifierRegex)\\s*=\\s*(.+)""".r
-  private val assignRegex     = s"""($identifierRegex)\\s*=\\s*(.+)""".r
-  private val appendRegex     = s"""($identifierRegex)\\s*\\.\\s*append\\s*\\((.+)\\)""".r
-  private val removeRegex     = s"""($identifierRegex)\\s*\\.\\s*remove\\s*\\((.+)\\)""".r
-  private val indexRegex      = s"""($identifierRegex)\\s*\\[(.+)\\]""".r
-  private val arrayEmptyRegex = """array\s*\[\s*\]""".r
-  private val incRegex        = s"""($identifierRegex)\\s*\\+\\+""".r
-
   private def decodeEscapes(input: String): String = {
     val out = new StringBuilder(input.length)
     var i   = 0
@@ -51,21 +42,42 @@ object Parser {
   private val equals: P[Unit]         = P.string("==").surroundedBy(whitespaces0)
   private val notEquals: P[Unit]      = P.string("!=").surroundedBy(whitespaces0)
   private val lessThan: P[Unit]       = P.char('<').surroundedBy(whitespaces0)
+  private val dot: P[Unit]            = P.char('.').surroundedBy(whitespaces0)
   private val parensL: P[Unit]        = P.char('(').surroundedBy(whitespaces0)
   private val parensR: P[Unit]        = P.char(')').surroundedBy(whitespaces0)
+  private val squareL: P[Unit]        = P.char('[').surroundedBy(whitespaces0)
+  private val squareR: P[Unit]        = P.char(']').surroundedBy(whitespaces0)
   private val curlyL: P[Unit]         = P.char('{').surroundedBy(whitespaces0)
   private val curlyR: P[Unit]         = P.char('}').surroundedBy(whitespaces0)
   private val firstParamChar: P[Char] = P.charIn(('a' to 'z') ++ ('A' to 'Z') :+ '_')
   private val anyParamChar: P[Char]   = P.charIn(('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z') :+ '_' :+ '.')
+  private val anyVarChar: P[Char]     = P.charIn(('0' to '9') ++ ('a' to 'z') ++ ('A' to 'Z') :+ '_')
+  private val increment: P[Unit]      = P.string("++").surroundedBy(whitespaces0)
 
-  private val `if`: P[Unit]   = (P.string("if") <* !anyParamChar).surroundedBy(whitespaces0)
-  private val `else`: P[Unit] = (P.string("else") <* !anyParamChar).surroundedBy(whitespaces0)
+  private def keyword(name: String): P[Unit] =
+    (P.string(name) <* !anyParamChar).surroundedBy(whitespaces0).void
+
+  private val paramIdentifier: P[String] = (firstParamChar ~ anyParamChar.rep0.string)
+    .map { case (first, rest) =>
+      s"$first$rest"
+    }
+
+  private val varIdentifier: P[String] = (firstParamChar ~ anyVarChar.rep0.string)
+    .map { case (first, rest) =>
+      s"$first$rest"
+    }
+
+  private val `if`: P[Unit]   = keyword("if")
+  private val `else`: P[Unit] = keyword("else")
+  private val `var`: P[Unit]  = keyword("var")
+  private val `in`: P[Unit]   = keyword("in")
+  private val `array`: P[Unit]  = keyword("array")
 
   private val reservedWords: P[Unit] = `if` | `else`
 
-  private val param: P0[Expr] = (!reservedWords *> (firstParamChar ~ anyParamChar.rep0.string))
-    .map { case (first, rest) =>
-      Param(s"$first$rest")
+  private val param: P0[Expr] = (!reservedWords *> paramIdentifier)
+    .map { name =>
+      Param(name)
     }
     .withContext("param")
 
@@ -186,6 +198,35 @@ object Parser {
   private def expr: P0[Expr] = P.defer0(ifElse.backtrack | op).withContext("expr")
 
   private val dsl: P0[Expr] = expr <* P.end
+  private val assignment: P[Unit] = P.char('=').surroundedBy(whitespaces0)
+  private val statementTail: P[String] = P.anyChar.rep.string
+
+  private val varDeclStatement: P[(String, String)] =
+    (((`var` *> paramIdentifier) <* assignment) ~ statementTail) <* P.end
+
+  private val assignStatement: P[(String, String)] =
+    ((paramIdentifier <* assignment) ~ statementTail) <* P.end
+
+  private val appendStatement: P0[(String, Expr)] =
+    (((varIdentifier <* dot) <* keyword("append")) ~ op.between(parensL, parensR) <* whitespaces0) <* P.end
+
+  private val removeStatement: P0[(String, Expr)] =
+    (((varIdentifier <* dot) <* keyword("remove")) ~ op.between(parensL, parensR) <* whitespaces0) <* P.end
+
+  private val indexStatement: P0[(String, Expr)] =
+    ((paramIdentifier ~ op.between(squareL, squareR)) <* whitespaces0) <* P.end
+
+  private val arrayEmptyStatement: P0[Expr] =
+    (`array` *> squareL *> squareR *> whitespaces0 <* P.end).as(ArrayEmpty)
+
+  private val incStatement: P0[Expr] =
+    ((paramIdentifier <* increment) <* P.end).map(Inc)
+
+  private val forEachHeader: P[(String, String)] =
+    (((`var` *> paramIdentifier) <* `in`) ~ paramIdentifier <* whitespaces0) <* P.end
+
+  private def parseWith[A](parser: P0[A], input: String): Option[A] =
+    parser.parseAll(input).toOption
 
   def parseDsl(s: String): Either[Error, Expr] =
     parseExpression(s) match {
@@ -216,29 +257,46 @@ object Parser {
     }
   }
 
-  private def parseStatement(line: String): Either[Error, Expr] =
-    line match {
-      case varDeclRegex(name, rhs)  => parseDsl(rhs).map(expr => VarDecl(name, expr))
-      case assignRegex(name, rhs)   => parseDsl(rhs).map(expr => Assign(name, expr))
-      case appendRegex(name, value) =>
-        parseDsl(value).map(v => Append(name, v))
-      case removeRegex(name, index) =>
-        parseDsl(index).map(i => Remove(name, i))
-      case indexRegex(name, index)  =>
-        parseDsl(index).map(i => ArrayIndex(name, i))
-      case arrayEmptyRegex()        =>
-        Right(ArrayEmpty)
-      case incRegex(name)           => Right(Inc(name))
-      case _                        =>
-        parseExpression(line) match {
-          case right @ Right(_)      => right
-          case Left(expressionError) =>
-            parseIfWithScriptBranches(line)
-              .orElse(parseForEachLoop(line))
-              .orElse(parseForLoop(line))
-              .toRight(expressionError)
+  private def parseStatement(line: String): Either[Error, Expr] = {
+    val input = line.trim
+
+    parseWith(varDeclStatement, input) match {
+      case Some((name, rhs)) => parseDsl(rhs).map(expr => VarDecl(name, expr))
+      case None              =>
+        parseWith(assignStatement, input) match {
+          case Some((name, rhs)) => parseDsl(rhs).map(expr => Assign(name, expr))
+          case None              =>
+            parseWith(appendStatement, input) match {
+              case Some((name, value)) => Right(Append(name, value))
+              case None                =>
+                parseWith(removeStatement, input) match {
+                  case Some((name, index)) => Right(Remove(name, index))
+                  case None                =>
+                    parseWith(indexStatement, input) match {
+                      case Some((name, index)) => Right(ArrayIndex(name, index))
+                      case None                =>
+                        parseWith(arrayEmptyStatement, input) match {
+                          case Some(arrayEmpty) => Right(arrayEmpty)
+                          case None             =>
+                            parseWith(incStatement, input) match {
+                              case Some(inc) => Right(inc)
+                              case None      =>
+                                parseExpression(input) match {
+                                  case right @ Right(_)      => right
+                                  case Left(expressionError) =>
+                                    parseIfWithScriptBranches(input)
+                                      .orElse(parseForEachLoop(input))
+                                      .orElse(parseForLoop(input))
+                                      .toRight(expressionError)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
+  }
 
   private final case class Delimited(content: String, next: Int)
 
@@ -515,8 +573,6 @@ object Parser {
       }
     }
 
-    val forEachHeaderRegex = s"""var\\s+($identifierRegex)\\s+in\\s+($identifierRegex)""".r
-
     val forStart = skipWhitespaces(0)
     if (!startsWithWord(forStart, "for")) None
     else {
@@ -526,10 +582,8 @@ object Parser {
         parseDelimited(bodyStart, '{', '}').flatMap { body =>
           if (skipWhitespaces(body.next) != text.length) None
           else {
-            header.content.trim match {
-              case forEachHeaderRegex(itemName, arrayName) =>
-                parseDsl(body.content).toOption.map(bodyExpr => ForEachLoop(itemName, arrayName, bodyExpr))
-              case _                                       => None
+            parseWith(forEachHeader, header.content.trim).flatMap { case (itemName, arrayName) =>
+              parseDsl(body.content).toOption.map(bodyExpr => ForEachLoop(itemName, arrayName, bodyExpr))
             }
           }
         }
