@@ -67,11 +67,11 @@ object Parser {
       s"$first$rest"
     }
 
-  private val `if`: P[Unit]   = keyword("if")
-  private val `else`: P[Unit] = keyword("else")
-  private val `var`: P[Unit]  = keyword("var")
-  private val `in`: P[Unit]   = keyword("in")
-  private val `array`: P[Unit]  = keyword("array")
+  private val `if`: P[Unit]    = keyword("if")
+  private val `else`: P[Unit]  = keyword("else")
+  private val `var`: P[Unit]   = keyword("var")
+  private val `in`: P[Unit]    = keyword("in")
+  private val `array`: P[Unit] = keyword("array")
 
   private val reservedWords: P[Unit] = `if` | `else`
 
@@ -197,8 +197,8 @@ object Parser {
 
   private def expr: P0[Expr] = P.defer0(ifElse.backtrack | op).withContext("expr")
 
-  private val dsl: P0[Expr] = expr <* P.end
-  private val assignment: P[Unit] = P.char('=').surroundedBy(whitespaces0)
+  private val dsl: P0[Expr]            = expr <* P.end
+  private val assignment: P[Unit]      = P.char('=').surroundedBy(whitespaces0)
   private val statementTail: P[String] = P.anyChar.rep.string
 
   private val varDeclStatement: P[(String, String)] =
