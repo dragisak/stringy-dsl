@@ -18,3 +18,5 @@ addCompilerPlugin("org.typelevel" % "kind-projector" % "0.13.4" cross CrossVersi
 scalacOptions ++= List(
   "-Ymacro-annotations"
 )
+
+Test / test := ((Test / test) dependsOn scalafmtCheckAll).value
